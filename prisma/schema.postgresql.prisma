@@ -116,18 +116,18 @@ model UsageGrant {
 }
 
 model Subscription {
-  id                     String   @id @default(cuid())
+  id                     String    @id @default(cuid())
   userId                 String
   provider               String
   providerCustomerId     String?
   providerSubscriptionId String
-  plan                   String   @default("PREMIUM")
+  plan                   String    @default("PREMIUM")
   status                 String
   currentPeriodEnd       DateTime?
-  cancelAtPeriodEnd      Boolean  @default(false)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cancelAtPeriodEnd      Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerSubscriptionId])
   @@index([userId, status])

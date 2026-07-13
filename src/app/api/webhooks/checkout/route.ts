@@ -2,7 +2,6 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { Prisma } from "../../../../../../generated/prisma";
 import { env } from "~/env";
 import { db } from "~/server/db";
 import { getStripe } from "~/server/payments/stripe";
@@ -24,6 +23,15 @@ type IyzicoWebhook = {
   orderReferenceCode?: string;
   customerReferenceCode?: string;
 };
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
 
 function signatureMatches(actual: string, expected: string) {
   const actualBuffer = Buffer.from(actual.toLowerCase(), "utf8");
@@ -129,10 +137,7 @@ async function handleIyzico(rawBody: string, signature: string) {
       }
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (isUniqueConstraintError(error)) {
       return NextResponse.json({ received: true, duplicate: true });
     }
     throw error;
@@ -148,22 +153,28 @@ export async function POST(request: Request) {
     if (!env.STRIPE_WEBHOOK_SECRET) {
       return NextResponse.json({ error: "Not configured" }, { status: 503 });
     }
+    let event;
     try {
-      const event = getStripe().webhooks.constructEvent(
+      event = getStripe().webhooks.constructEvent(
         rawBody,
         stripeSignature,
         env.STRIPE_WEBHOOK_SECRET,
       );
+    } catch {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    }
+
+    try {
       await db.$transaction((tx) => processStripeEvent(tx, event));
       return NextResponse.json({ received: true });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
+      if (isUniqueConstraintError(error)) {
         return NextResponse.json({ received: true, duplicate: true });
       }
-      return NextResponse.json({ error: "Invalid webhook" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Webhook processing failed" },
+        { status: 500 },
+      );
     }
   }
 

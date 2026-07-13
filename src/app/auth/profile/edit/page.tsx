@@ -55,14 +55,16 @@ export default async function ProfileEditPage() {
         <div className="space-y-6">
           <ProfileImageUpload initialUrl={user.image} name={user.name} />
           <ProfileEditForms
-          user={{
-            name: user.name,
-            email: user.email,
-            locale: user.locale,
-            hasPassword: Boolean(user.passwordHash),
-          }}
-          googleConnected={user.accounts.length > 0}
-          googleEnabled={Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET)}
+            user={{
+              name: user.name,
+              email: user.email,
+              locale: user.locale,
+              hasPassword: Boolean(user.passwordHash),
+            }}
+            googleConnected={user.accounts.length > 0}
+            googleEnabled={Boolean(
+              env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET,
+            )}
           />
         </div>
       </div>

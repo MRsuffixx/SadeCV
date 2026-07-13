@@ -1,7 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import { env } from "~/env";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 import { getResumeEntitlement } from "~/server/billing/entitlements";
 import {
   createIyzicoDonationCheckout,
@@ -22,8 +27,14 @@ const providerSchema = z.enum(["STRIPE", "IYZICO"]);
 const billingProfileSchema = z.object({
   name: z.string().trim().min(1).max(80),
   surname: z.string().trim().min(1).max(80),
-  identityNumber: z.string().trim().regex(/^\d{11}$/),
-  gsmNumber: z.string().trim().regex(/^\+?[0-9]{10,15}$/),
+  identityNumber: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/),
+  gsmNumber: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{10,15}$/),
   email: z.string().trim().email().max(254),
   address: z.string().trim().min(5).max(240),
   city: z.string().trim().min(2).max(80),
@@ -38,6 +49,13 @@ function clientAddress(headers: Headers) {
     headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     "unknown"
   );
+}
+
+function assertTrustedOrigin(headers: Headers) {
+  const origin = headers.get("origin");
+  if (origin && new URL(origin).origin !== new URL(env.APP_DOMAIN).origin) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "UNTRUSTED_ORIGIN" });
+  }
 }
 
 export const billingRouter = createTRPCRouter({
@@ -65,16 +83,14 @@ export const billingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const allowed = await rateLimit(
-        `subscription:${ctx.session.user.id}`,
-        { limit: 5, windowSeconds: 300 },
-      );
+      assertTrustedOrigin(ctx.headers);
+      const allowed = await rateLimit(`subscription:${ctx.session.user.id}`, {
+        limit: 5,
+        windowSeconds: 300,
+      });
       if (!allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
       if (
-        !(await verifyTurnstile(
-          input.turnstileToken,
-          getClientIp(ctx.headers),
-        ))
+        !(await verifyTurnstile(input.turnstileToken, getClientIp(ctx.headers)))
       ) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -129,7 +145,11 @@ export const billingRouter = createTRPCRouter({
         userId: user.id,
         profile: input.billingProfile,
       });
-      return { provider: input.provider, sessionId: checkout.token, ...checkout };
+      return {
+        provider: input.provider,
+        sessionId: checkout.token,
+        ...checkout,
+      };
     }),
 
   createDonationCheckout: publicProcedure
@@ -144,6 +164,7 @@ export const billingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      assertTrustedOrigin(ctx.headers);
       const ip = clientAddress(ctx.headers);
       const allowed = await rateLimit(`donation:${ip}`, {
         limit: 10,
@@ -204,6 +225,7 @@ export const billingRouter = createTRPCRouter({
         const checkout = await createIyzicoDonationCheckout({
           donationId: donation.id,
           amount: input.amount,
+          ip,
           profile: input.billingProfile,
         });
         await ctx.db.donation.update({

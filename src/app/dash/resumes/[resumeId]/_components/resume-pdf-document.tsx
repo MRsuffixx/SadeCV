@@ -58,7 +58,12 @@ const styles = StyleSheet.create({
   itemHead: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
   itemTitle: { fontSize: 9.2, fontFamily: "Helvetica-Bold", flexGrow: 1 },
   period: { fontSize: 7.2, fontFamily: "Helvetica-Bold", color: "#828985" },
-  company: { marginTop: 3, fontSize: 7.8, fontFamily: "Helvetica-Bold", color: "#d65e48" },
+  company: {
+    marginTop: 3,
+    fontSize: 7.8,
+    fontFamily: "Helvetica-Bold",
+    color: "#d65e48",
+  },
   education: { fontSize: 8.2, fontFamily: "Helvetica-Bold", marginBottom: 2 },
   educationMeta: { fontSize: 7.4, color: "#68716d", lineHeight: 1.45 },
 });
@@ -87,32 +92,42 @@ export function ResumePdfDocument({ data }: { data: ResumePdfData }) {
         <View style={styles.columns}>
           <View style={styles.aside}>
             {content.basics.imageUrl ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image is not a DOM image and has no alt prop.
               <Image src={content.basics.imageUrl} style={styles.photo} />
             ) : null}
             <View style={styles.section}>
-              <Text style={[styles.sectionHeading, { color: accentColor }]}>Contact</Text>
+              <Text style={[styles.sectionHeading, { color: accentColor }]}>
+                Contact
+              </Text>
               <Text style={styles.contact}>
                 {content.basics.email || "you@example.com"}
               </Text>
             </View>
             <View style={styles.section}>
-              <Text style={[styles.sectionHeading, { color: accentColor }]}>Skills</Text>
+              <Text style={[styles.sectionHeading, { color: accentColor }]}>
+                Skills
+              </Text>
               <View style={styles.skillRow}>
-                {(content.skills.length ? content.skills : ["Your", "Key", "Skills"]).map(
-                  (skill) => (
-                    <Text key={skill} style={styles.skill}>
-                      {skill}
-                    </Text>
-                  ),
-                )}
+                {(content.skills.length
+                  ? content.skills
+                  : ["Your", "Key", "Skills"]
+                ).map((skill) => (
+                  <Text key={skill} style={styles.skill}>
+                    {skill}
+                  </Text>
+                ))}
               </View>
             </View>
             {content.education.length ? (
               <View style={styles.section}>
-                <Text style={[styles.sectionHeading, { color: accentColor }]}>Education</Text>
+                <Text style={[styles.sectionHeading, { color: accentColor }]}>
+                  Education
+                </Text>
                 {content.education.map((item) => (
                   <View key={item.id} style={styles.item} wrap={false}>
-                    <Text style={styles.education}>{item.degree || "Degree"}</Text>
+                    <Text style={styles.education}>
+                      {item.degree || "Degree"}
+                    </Text>
                     <Text style={styles.educationMeta}>{item.school}</Text>
                     <Text style={styles.educationMeta}>{item.period}</Text>
                   </View>
@@ -122,14 +137,18 @@ export function ResumePdfDocument({ data }: { data: ResumePdfData }) {
           </View>
           <View style={styles.main}>
             <View style={styles.section}>
-              <Text style={[styles.sectionHeading, { color: accentColor }]}>Profile</Text>
+              <Text style={[styles.sectionHeading, { color: accentColor }]}>
+                Profile
+              </Text>
               <Text style={styles.body}>
                 {content.basics.summary ||
                   "A focused summary of the value you bring, the problems you solve, and the work you want to do next."}
               </Text>
             </View>
             <View>
-              <Text style={[styles.sectionHeading, { color: accentColor }]}>Experience</Text>
+              <Text style={[styles.sectionHeading, { color: accentColor }]}>
+                Experience
+              </Text>
               {(content.experience.length
                 ? content.experience
                 : [
@@ -138,17 +157,22 @@ export function ResumePdfDocument({ data }: { data: ResumePdfData }) {
                       role: "Your latest role",
                       company: "Company",
                       period: "Dates",
-                      description: "Describe the outcome and impact of your work.",
+                      description:
+                        "Describe the outcome and impact of your work.",
                     },
                   ]
               ).map((item) => (
                 <View key={item.id} style={styles.item} wrap={false}>
                   <View style={styles.itemHead}>
-                    <Text style={styles.itemTitle}>{item.role || "Role title"}</Text>
+                    <Text style={styles.itemTitle}>
+                      {item.role || "Role title"}
+                    </Text>
                     <Text style={styles.period}>{item.period}</Text>
                   </View>
                   <Text style={styles.company}>{item.company}</Text>
-                  <Text style={[styles.body, { marginTop: 5 }]}>{item.description}</Text>
+                  <Text style={[styles.body, { marginTop: 5 }]}>
+                    {item.description}
+                  </Text>
                 </View>
               ))}
             </View>

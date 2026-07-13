@@ -1,9 +1,5 @@
 export type ResumeTemplate =
-  | "ATLAS"
-  | "MONO"
-  | "EDITORIAL"
-  | "EXECUTIVE"
-  | "STUDIO";
+  "ATLAS" | "MONO" | "EDITORIAL" | "EXECUTIVE" | "STUDIO";
 
 export type ResumeExperience = {
   id: string;

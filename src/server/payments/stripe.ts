@@ -9,8 +9,8 @@ let stripeClient: Stripe | undefined;
 export function isStripeSubscriptionConfigured() {
   return Boolean(
     env.STRIPE_SECRET_KEY &&
-      env.STRIPE_WEBHOOK_SECRET &&
-      env.STRIPE_PREMIUM_PRICE_ID,
+    env.STRIPE_WEBHOOK_SECRET &&
+    env.STRIPE_PREMIUM_PRICE_ID,
   );
 }
 

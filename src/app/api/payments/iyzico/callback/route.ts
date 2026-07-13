@@ -89,5 +89,8 @@ export async function POST(request: Request) {
     });
     await recomputeUserPlan(tx, query.data.reference);
   });
-  return NextResponse.redirect(`${origin}/pricing/success?provider=iyzico`, 303);
+  return NextResponse.redirect(
+    `${origin}/pricing/success?provider=iyzico`,
+    303,
+  );
 }

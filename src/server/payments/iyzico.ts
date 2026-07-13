@@ -45,9 +45,9 @@ let iyzicoClient: Iyzipay | undefined;
 export function isIyzicoConfigured() {
   return Boolean(
     env.IYZICO_API_KEY &&
-      env.IYZICO_SECRET_KEY &&
-      env.IYZICO_BASE_URL &&
-      env.IYZICO_PREMIUM_PLAN_REFERENCE_CODE,
+    env.IYZICO_SECRET_KEY &&
+    env.IYZICO_BASE_URL &&
+    env.IYZICO_PREMIUM_PLAN_REFERENCE_CODE,
   );
 }
 
@@ -77,7 +77,9 @@ function invoke(
       if (error) return reject(error);
       const response = result as IyzicoResult;
       if (response.status !== "success") {
-        return reject(new Error(response.errorMessage ?? "iyzico request failed."));
+        return reject(
+          new Error(response.errorMessage ?? "iyzico request failed."),
+        );
       }
       resolve(response);
     });
@@ -140,6 +142,7 @@ export async function createIyzicoSubscriptionCheckout(input: {
 export async function createIyzicoDonationCheckout(input: {
   donationId: string;
   amount: number;
+  ip: string;
   profile: IyzicoBillingProfile;
 }) {
   const origin = env.APP_DOMAIN.replace(/\/$/, "");
@@ -153,7 +156,7 @@ export async function createIyzicoDonationCheckout(input: {
     email: input.profile.email,
     identityNumber: input.profile.identityNumber,
     registrationAddress: input.profile.address,
-    ip: "127.0.0.1",
+    ip: input.ip,
     city: input.profile.city,
     country: input.profile.country,
     zipCode: input.profile.zipCode,

@@ -16,11 +16,14 @@ export function getCalendarMonth(date = new Date()) {
   };
 }
 
-export function hasPremiumAccess(user: {
-  tier: string;
-  tierStatus: string;
-  tierExpiresAt: Date | null;
-}, now = new Date()) {
+export function hasPremiumAccess(
+  user: {
+    tier: string;
+    tierStatus: string;
+    tierExpiresAt: Date | null;
+  },
+  now = new Date(),
+) {
   const statusAllowsAccess = ["ACTIVE", "TRIALING"].includes(user.tierStatus);
   const hasNotExpired = !user.tierExpiresAt || user.tierExpiresAt > now;
   return user.tier === "PREMIUM" && statusAllowsAccess && hasNotExpired;

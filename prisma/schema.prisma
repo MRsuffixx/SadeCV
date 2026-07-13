@@ -1,161 +1,162 @@
 generator client {
-    provider = "prisma-client-js"
-    output   = "../generated/prisma"
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
-    provider = "sqlite"
-    url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
-model Account {
-    id                       String  @id @default(cuid())
-    userId                   String
-    type                     String
-    provider                 String
-    providerAccountId        String
-    refresh_token            String?
-    access_token             String?
-    expires_at               Int?
-    token_type               String?
-    scope                    String?
-    id_token                 String?
-    session_state            String?
-    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    refresh_token_expires_in Int?
 
-    @@unique([provider, providerAccountId])
-    @@index([userId])
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token_expires_in Int?
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    userId       String
-    expires      DateTime
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
-    id                              String         @id @default(cuid())
-    name                            String?
-    email                           String         @unique
-    emailVerified                   DateTime?
-    image                           String?
-    passwordHash                    String?
-    role                            String         @default("USER")
-    tier                            String         @default("FREE")
-    tierStatus                      String         @default("ACTIVE")
-    tierExpiresAt                   DateTime?
-    stripeCustomerId                String?        @unique
-    stripeSubscriptionId            String?        @unique
-    iyzicoCustomerReferenceCode     String?
-    iyzicoSubscriptionReferenceCode String?        @unique
-    locale                          String         @default("en")
-    createdAt                       DateTime       @default(now())
-    updatedAt                       DateTime       @updatedAt
-    accounts                        Account[]
-    sessions                        Session[]
-    resumes                         Resume[]
-    usageGrants                     UsageGrant[]
-    subscriptions                   Subscription[]
-    donations                       Donation[]
+  id                              String         @id @default(cuid())
+  name                            String?
+  email                           String         @unique
+  emailVerified                   DateTime?
+  image                           String?
+  passwordHash                    String?
+  role                            String         @default("USER")
+  tier                            String         @default("FREE")
+  tierStatus                      String         @default("ACTIVE")
+  tierExpiresAt                   DateTime?
+  stripeCustomerId                String?        @unique
+  stripeSubscriptionId            String?        @unique
+  iyzicoCustomerReferenceCode     String?
+  iyzicoSubscriptionReferenceCode String?        @unique
+  locale                          String         @default("en")
+  createdAt                       DateTime       @default(now())
+  updatedAt                       DateTime       @updatedAt
+  accounts                        Account[]
+  sessions                        Session[]
+  resumes                         Resume[]
+  usageGrants                     UsageGrant[]
+  subscriptions                   Subscription[]
+  donations                       Donation[]
 }
 
 model VerificationToken {
-    identifier String
-    token      String   @unique
-    expires    DateTime
+  identifier String
+  token      String   @unique
+  expires    DateTime
 
-    @@unique([identifier, token])
+  @@unique([identifier, token])
 }
 
 model Resume {
-    id          String          @id @default(cuid())
-    userId      String
-    title       String          @default("Untitled CV")
-    slug        String
-    template    String          @default("ATLAS")
-    accentColor String          @default("#0F766E")
-    contentJson String          @default("{}")
-    status      String          @default("DRAFT")
-    isPublic    Boolean         @default(false)
-    createdAt   DateTime        @default(now())
-    updatedAt   DateTime        @updatedAt
-    user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-    versions    ResumeVersion[]
+  id          String          @id @default(cuid())
+  userId      String
+  title       String          @default("Untitled CV")
+  slug        String
+  template    String          @default("ATLAS")
+  accentColor String          @default("#0F766E")
+  contentJson String          @default("{}")
+  status      String          @default("DRAFT")
+  isPublic    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions    ResumeVersion[]
 
-    @@unique([userId, slug])
-    @@index([userId, updatedAt])
+  @@unique([userId, slug])
+  @@index([userId, updatedAt])
 }
 
 model ResumeVersion {
-    id          String   @id @default(cuid())
-    resumeId    String
-    contentJson String
-    label       String?
-    createdAt   DateTime @default(now())
-    resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  resumeId    String
+  contentJson String
+  label       String?
+  createdAt   DateTime @default(now())
+  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
-    @@index([resumeId, createdAt])
+  @@index([resumeId, createdAt])
 }
 
 model UsageGrant {
-    id          String   @id @default(cuid())
-    userId      String
-    kind        String
-    periodKey   String
-    periodStart DateTime
-    periodEnd   DateTime
-    resourceId  String?
-    createdAt   DateTime @default(now())
-    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  userId      String
+  kind        String
+  periodKey   String
+  periodStart DateTime
+  periodEnd   DateTime
+  resourceId  String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, kind, periodKey])
-    @@index([userId, periodEnd])
+  @@unique([userId, kind, periodKey])
+  @@index([userId, periodEnd])
 }
 
 model Subscription {
-    id                     String    @id @default(cuid())
-    userId                 String
-    provider               String
-    providerCustomerId     String?
-    providerSubscriptionId String
-    plan                   String    @default("PREMIUM")
-    status                 String
-    currentPeriodEnd       DateTime?
-    cancelAtPeriodEnd      Boolean   @default(false)
-    createdAt              DateTime  @default(now())
-    updatedAt              DateTime  @updatedAt
-    user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                     String    @id @default(cuid())
+  userId                 String
+  provider               String
+  providerCustomerId     String?
+  providerSubscriptionId String
+  plan                   String    @default("PREMIUM")
+  status                 String
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([provider, providerSubscriptionId])
-    @@index([userId, status])
+  @@unique([provider, providerSubscriptionId])
+  @@index([userId, status])
 }
 
 model Donation {
-    id                String    @id @default(cuid())
-    userId            String?
-    provider          String
-    providerSessionId String?   @unique
-    providerPaymentId String?
-    amount            Int
-    currency          String
-    status            String    @default("PENDING")
-    supporterEmail    String?
-    createdAt         DateTime  @default(now())
-    paidAt            DateTime?
-    user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id                String    @id @default(cuid())
+  userId            String?
+  provider          String
+  providerSessionId String?   @unique
+  providerPaymentId String?
+  amount            Int
+  currency          String
+  status            String    @default("PENDING")
+  supporterEmail    String?
+  createdAt         DateTime  @default(now())
+  paidAt            DateTime?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-    @@index([status, createdAt])
-    @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }
 
 model PaymentEvent {
-    id          String   @id
-    provider    String
-    type        String
-    payloadHash String?
-    createdAt   DateTime @default(now())
+  id          String   @id
+  provider    String
+  type        String
+  payloadHash String?
+  createdAt   DateTime @default(now())
 
-    @@index([provider, createdAt])
+  @@index([provider, createdAt])
 }

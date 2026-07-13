@@ -1,4 +1,4 @@
-import { UploadThingError, createUploadthing, type FileRouter } from "uploadthing/server";
+import { createUploadthing, type FileRouter } from "uploadthing/server";
 import { z } from "zod";
 
 import { auth } from "~/server/auth";
@@ -8,7 +8,7 @@ const f = createUploadthing();
 
 async function authenticatedUser() {
   const session = await auth();
-  if (!session?.user?.id) throw new UploadThingError("Unauthorized");
+  if (!session?.user?.id) throw new Error("Unauthorized");
   return session.user;
 }
 
@@ -36,7 +36,7 @@ export const uploadRouter = {
         where: { id: input.resumeId, userId: user.id },
         select: { id: true },
       });
-      if (!resume) throw new UploadThingError("Resume not found");
+      if (!resume) throw new Error("Resume not found");
       return { userId: user.id, resumeId: resume.id };
     })
     .onUploadComplete(({ file, metadata }) => ({

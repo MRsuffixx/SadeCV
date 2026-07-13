@@ -1,6 +1,7 @@
 "use client";
 
 import { Camera, CheckCircle2, LoaderCircle } from "lucide-react";
+import Image from "next/image";
 import { useRef, useState } from "react";
 
 import { useUploadThing } from "~/utils/uploadthing";
@@ -29,10 +30,12 @@ export function ProfileImageUpload({
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
         <div className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-[1.6rem] bg-[#e5f0eb] font-serif text-3xl text-[#175442]">
           {preview ? (
-            // UploadThing URLs are persisted directly; the browser never serializes the image into the database.
-            <img
+            <Image
               src={preview}
               alt={`${name ?? "User"} profile`}
+              width={96}
+              height={96}
+              unoptimized
               className="size-full object-cover"
             />
           ) : (

@@ -73,7 +73,10 @@ export const resumeRouter = createTRPCRouter({
             where: { id: userId },
             select: { tier: true, tierStatus: true, tierExpiresAt: true },
           });
-          if (PREMIUM_TEMPLATES.has(input.template) && !hasPremiumAccess(user)) {
+          if (
+            PREMIUM_TEMPLATES.has(input.template) &&
+            !hasPremiumAccess(user)
+          ) {
             throw new TRPCError({
               code: "FORBIDDEN",
               message: "PREMIUM_TEMPLATE_REQUIRED",
