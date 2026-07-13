@@ -9,9 +9,11 @@ import { useUploadThing } from "~/utils/uploadthing";
 export function ProfileImageUpload({
   initialUrl,
   name,
+  uploadsEnabled,
 }: {
   initialUrl: string | null;
   name: string | null;
+  uploadsEnabled: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState(initialUrl);
@@ -22,13 +24,7 @@ export function ProfileImageUpload({
       if (url) setPreview(url);
       setMessage("Profile photo updated");
     },
-    onUploadError: (error) =>
-      setMessage(
-        error.message.includes("UPLOADTHING_NOT_CONFIGURED") ||
-          error.message.includes("unavailable")
-          ? "Uploads need a v7 UploadThing token in the server environment."
-          : "The photo could not be uploaded.",
-      ),
+    onUploadError: () => setMessage("The photo could not be uploaded."),
   });
 
   return (
@@ -76,7 +72,7 @@ export function ProfileImageUpload({
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              disabled={isUploading}
+              disabled={isUploading || !uploadsEnabled}
               onClick={() => inputRef.current?.click()}
               className="button-secondary min-h-10 rounded-xl px-4 text-xs disabled:opacity-50"
             >
@@ -85,7 +81,11 @@ export function ProfileImageUpload({
               ) : (
                 <Camera size={15} />
               )}
-              {isUploading ? "Uploading…" : "Choose photo"}
+              {isUploading
+                ? "Uploading…"
+                : uploadsEnabled
+                  ? "Choose photo"
+                  : "Uploads unavailable"}
             </button>
             {message && (
               <span

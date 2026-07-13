@@ -280,7 +280,11 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
               Schema v3
             </span>
           </div>
-          <ResumeEditorPanels resumeId={resumeId} isPremium={isPremium} />
+          <ResumeEditorPanels
+            resumeId={resumeId}
+            isPremium={isPremium}
+            uploadsEnabled={systemStatus?.uploads === true}
+          />
         </section>
         <ResumePreview isPremium={isPremium} />
       </div>

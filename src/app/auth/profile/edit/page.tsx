@@ -9,6 +9,7 @@ import { ProfileImageUpload } from "~/app/auth/profile/edit/_components/profile-
 import { env } from "~/env";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+import { getUploadThingConfiguration } from "~/server/uploadthing-config";
 
 export const metadata: Metadata = { title: "Profile settings" };
 
@@ -53,7 +54,11 @@ export default async function ProfileEditPage() {
           secure way to sign in.
         </p>
         <div className="space-y-6">
-          <ProfileImageUpload initialUrl={user.image} name={user.name} />
+          <ProfileImageUpload
+            initialUrl={user.image}
+            name={user.name}
+            uploadsEnabled={getUploadThingConfiguration().configured}
+          />
           <ProfileEditForms
             user={{
               name: user.name,

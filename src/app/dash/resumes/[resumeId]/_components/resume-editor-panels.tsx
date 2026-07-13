@@ -31,13 +31,18 @@ import { useUploadThing } from "~/utils/uploadthing";
 export function ResumeEditorPanels({
   resumeId,
   isPremium,
+  uploadsEnabled,
 }: {
   resumeId: string;
   isPremium: boolean;
+  uploadsEnabled: boolean;
 }) {
   return (
     <div className="space-y-3">
-      <PersonalInformationPanel resumeId={resumeId} />
+      <PersonalInformationPanel
+        resumeId={resumeId}
+        uploadsEnabled={uploadsEnabled}
+      />
       <SummaryPanel />
       <EmploymentPanel />
       <EducationPanel />
@@ -56,7 +61,13 @@ export function ResumeEditorPanels({
   );
 }
 
-function PersonalInformationPanel({ resumeId }: { resumeId: string }) {
+function PersonalInformationPanel({
+  resumeId,
+  uploadsEnabled,
+}: {
+  resumeId: string;
+  uploadsEnabled: boolean;
+}) {
   const personal = useResumeStore((state) => state.content.personalInformation);
   const setPersonal = useResumeStore((state) => state.setPersonal);
   const setSocial = useResumeStore((state) => state.setSocial);
@@ -67,13 +78,8 @@ function PersonalInformationPanel({ resumeId }: { resumeId: string }) {
       const url = files[0]?.serverData.url;
       if (url) setPersonal("avatarUrl", url);
     },
-    onUploadError: (error) =>
-      setUploadError(
-        error.message.includes("UPLOADTHING_NOT_CONFIGURED") ||
-          error.message.includes("unavailable")
-          ? "Uploads need a v7 UploadThing token in the server environment."
-          : "The image could not be uploaded. Please try again.",
-      ),
+    onUploadError: () =>
+      setUploadError("The image could not be uploaded. Please try again."),
   });
 
   return (
@@ -124,11 +130,15 @@ function PersonalInformationPanel({ resumeId }: { resumeId: string }) {
         />
         <button
           type="button"
-          disabled={isUploading}
+          disabled={isUploading || !uploadsEnabled}
           onClick={() => inputRef.current?.click()}
           className="rounded-xl border border-black/10 bg-white px-3 py-2 text-[10px] font-extrabold disabled:opacity-50"
         >
-          {isUploading ? "Uploading…" : "Upload"}
+          {isUploading
+            ? "Uploading…"
+            : uploadsEnabled
+              ? "Upload"
+              : "Unavailable"}
         </button>
       </div>
       {uploadError ? (

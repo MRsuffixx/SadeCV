@@ -39,11 +39,11 @@ export function TurnstileField({
   const widgetId = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const [token, setToken] = useState(
+  const developmentToken =
     !siteKey && process.env.NODE_ENV !== "production"
       ? "development-bypass"
-      : "",
-  );
+      : "";
+  const [token, setToken] = useState(developmentToken);
 
   const renderWidget = useCallback(() => {
     if (
@@ -79,11 +79,11 @@ export function TurnstileField({
   useEffect(() => onTokenChange?.(token), [onTokenChange, token]);
 
   useEffect(() => {
-    setToken("");
+    setToken(developmentToken);
     if (widgetId.current && window.turnstile) {
       window.turnstile.reset(widgetId.current);
     }
-  }, [pathname, resetSignal]);
+  }, [developmentToken, pathname, resetSignal]);
 
   return (
     <div className={className}>

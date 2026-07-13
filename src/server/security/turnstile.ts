@@ -51,6 +51,14 @@ export async function verifyTurnstile(
   }
 }
 
+export function getLocalTurnstileBypassToken() {
+  const hostname = new URL(env.APP_DOMAIN).hostname;
+  return env.NODE_ENV === "development" &&
+    ["localhost", "127.0.0.1", "::1"].includes(hostname)
+    ? "development-bypass"
+    : "";
+}
+
 export function getClientIp(headers: Headers): string {
   const candidate =
     env.TRUSTED_PROXY_MODE === "cloudflare"

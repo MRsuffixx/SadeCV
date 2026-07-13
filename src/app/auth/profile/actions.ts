@@ -8,6 +8,7 @@ import { z } from "zod";
 import { auth, signIn, signOut } from "~/server/auth";
 import { db } from "~/server/db";
 import { rateLimit } from "~/server/security/rate-limit";
+import { hasTrustedOrigin } from "~/server/security/origin";
 import { getClientIp, verifyTurnstile } from "~/server/security/turnstile";
 
 export type ProfileActionState = {
@@ -20,6 +21,9 @@ async function authorizeSensitiveAction(token: string) {
   if (!session?.user?.id) return { error: "Please sign in again." } as const;
 
   const requestHeaders = await headers();
+  if (!hasTrustedOrigin(requestHeaders)) {
+    return { error: "This request could not be verified." } as const;
+  }
   const ip = getClientIp(requestHeaders);
   const allowed = await rateLimit(`profile:${session.user.id}:${ip}`, {
     limit: 12,
