@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "~/trpc/react";
 import type { ResumeTemplate } from "~/lib/resume-model";
+import { TEMPLATE_DEFINITIONS } from "~/templates/registry";
 
 type ResumeItem = {
   id: string;
@@ -238,38 +239,30 @@ export function ResumeGrid({
             </div>
             <div className="mt-5">
               <span className="field-label">Template</span>
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    { value: "ATLAS", premium: false },
-                    { value: "MONO", premium: false },
-                    { value: "EDITORIAL", premium: false },
-                    { value: "EXECUTIVE", premium: true },
-                    { value: "STUDIO", premium: true },
-                  ] as const
-                ).map(({ value, premium }) => (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {TEMPLATE_DEFINITIONS.map((definition) => (
                   <button
-                    key={value}
+                    key={definition.id}
                     type="button"
-                    onClick={() => {
-                      if (premium && !quota.data?.isPremium) {
-                        setCreateOpen(false);
-                        setPaywallOpen(true);
-                      } else setTemplate(value);
-                    }}
-                    className={`relative rounded-xl border px-3 py-3 text-xs font-extrabold transition ${template === value ? "border-[#277b67] bg-[#e5f1ec] text-[#195947]" : "border-black/10 bg-white text-[#707874] hover:border-black/20"}`}
+                    onClick={() => setTemplate(definition.id)}
+                    className={`relative min-h-16 rounded-xl border px-3 py-3 text-left text-xs font-extrabold transition ${template === definition.id ? "border-[#277b67] bg-[#e5f1ec] text-[#195947]" : "border-black/10 bg-white text-[#707874] hover:border-black/20"}`}
                   >
-                    {value[0]}
-                    {value.slice(1).toLowerCase()}
-                    {premium && (
-                      <Crown
-                        size={11}
-                        className="absolute top-1.5 right-1.5 text-[#d18a35]"
-                      />
-                    )}
+                    <span className="block pr-6">{definition.name}</span>
+                    <span className="mt-1 block text-[8px] font-black tracking-wider opacity-55 uppercase">
+                      {definition.category}
+                    </span>
+                    {definition.isPremium ? (
+                      <Crown size={11} className="absolute top-2 right-2 text-[#d18a35]" />
+                    ) : null}
                   </button>
                 ))}
               </div>
+              {getSelectedTemplatePremium(template) && !quota.data?.isPremium ? (
+                <p className="mt-2 rounded-xl bg-[#fff4da] px-3 py-2 text-[10px] font-bold leading-4 text-[#815b20]">
+                  Premium preview: you can design and save a draft, then upgrade
+                  to publish or export it.
+                </p>
+              ) : null}
             </div>
             {createResume.error && (
               <p
@@ -352,4 +345,8 @@ export function ResumeGrid({
       )}
     </>
   );
+}
+
+function getSelectedTemplatePremium(template: ResumeTemplate) {
+  return TEMPLATE_DEFINITIONS.find((item) => item.id === template)?.isPremium;
 }

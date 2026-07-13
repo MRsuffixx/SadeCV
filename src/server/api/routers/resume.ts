@@ -70,20 +70,6 @@ export const resumeRouter = createTRPCRouter({
 
       try {
         return await ctx.db.$transaction(async (tx) => {
-          const user = await tx.user.findUniqueOrThrow({
-            where: { id: userId },
-            select: { tier: true, tierStatus: true, tierExpiresAt: true },
-          });
-          if (
-            PREMIUM_TEMPLATES.has(input.template) &&
-            !hasPremiumAccess(user)
-          ) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "PREMIUM_TEMPLATE_REQUIRED",
-            });
-          }
-
           await consumeResumeGrant(tx, userId, grantReference);
           const nameParts = (ctx.session.user.name ?? "")
             .trim()
@@ -145,28 +131,39 @@ export const resumeRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, content, theme, ...data } = input;
-      if (data.template && PREMIUM_TEMPLATES.has(data.template)) {
-        const user = await ctx.db.user.findUniqueOrThrow({
+      const [existing, user] = await Promise.all([
+        ctx.db.resume.findFirst({
+          where: { id, userId: ctx.session.user.id },
+          select: { template: true, contentJson: true },
+        }),
+        ctx.db.user.findUniqueOrThrow({
           where: { id: ctx.session.user.id },
           select: { tier: true, tierStatus: true, tierExpiresAt: true },
+        }),
+      ]);
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      const targetTemplate = resumeTemplateSchema.parse(
+        data.template ?? existing.template,
+      );
+      const premiumPreviewOnly =
+        PREMIUM_TEMPLATES.has(targetTemplate) && !hasPremiumAccess(user);
+      if (
+        premiumPreviewOnly &&
+        (data.status === "READY" || data.isPublic === true)
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "PREMIUM_TEMPLATE_REQUIRED",
         });
-        if (!hasPremiumAccess(user)) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "PREMIUM_TEMPLATE_REQUIRED",
-          });
-        }
       }
+      const guardedData = premiumPreviewOnly
+        ? { ...data, status: "DRAFT" as const, isPublic: false }
+        : data;
 
-      if (data.status === "READY") {
+      if (guardedData.status === "READY") {
         let contentToValidate = content;
         if (!contentToValidate) {
-          const current = await ctx.db.resume.findFirst({
-            where: { id, userId: ctx.session.user.id },
-            select: { contentJson: true },
-          });
-          if (!current) throw new TRPCError({ code: "NOT_FOUND" });
-          contentToValidate = parseResumeContent(current.contentJson);
+          contentToValidate = parseResumeContent(existing.contentJson);
         }
         const validation = resumeContentSchema.safeParse(contentToValidate);
         if (!validation.success) {
@@ -181,7 +178,7 @@ export const resumeRouter = createTRPCRouter({
       const result = await ctx.db.resume.updateMany({
         where: { id, userId: ctx.session.user.id },
         data: {
-          ...data,
+          ...guardedData,
           ...(theme
             ? {
                 accentColor: theme.accentColor,

@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, Check, Download, LoaderCircle, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Crown,
+  Download,
+  LoaderCircle,
+  Save,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -8,6 +15,7 @@ import { ResumeEditorPanels } from "~/app/dash/resumes/[resumeId]/_components/re
 import { ResumePreview } from "~/app/dash/resumes/[resumeId]/_components/resume-preview";
 import { useResumeStore } from "~/app/dash/resumes/[resumeId]/_store/resume-store";
 import { isResumeReady, type ResumeRecord } from "~/lib/resume-model";
+import { getTemplateDefinition } from "~/templates/registry";
 import { api } from "~/trpc/react";
 
 export function ResumeEditor({ resume }: { resume: ResumeRecord }) {
@@ -31,6 +39,9 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
   const title = useResumeStore((state) => state.title);
   const saved = useResumeStore((state) => state.saved);
   const isPublic = useResumeStore((state) => state.isPublic);
+  const selectedTemplateId = useResumeStore(
+    (state) => state.selectedTemplateId,
+  );
   const setTitle = useResumeStore((state) => state.setTitle);
   const setPublic = useResumeStore((state) => state.setPublic);
   const markSaved = useResumeStore((state) => state.markSaved);
@@ -39,17 +50,21 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
   const { data: entitlement } = api.billing.entitlements.useQuery();
   const { data: systemStatus } = api.system.status.useQuery();
   const mutation = api.resume.update.useMutation({ onSuccess: markSaved });
+  const isPremium = entitlement?.isPremium ?? false;
+  const premiumLocked =
+    getTemplateDefinition(selectedTemplateId).isPremium && !isPremium;
 
   const save = () => {
     const state = useResumeStore.getState();
     mutation.mutate({
       id: resumeId,
       title: state.title,
-      template: state.template,
-      accentColor: state.accentColor,
-      isPublic: state.isPublic,
+      template: state.selectedTemplateId,
+      theme: state.theme,
+      isPublic: premiumLocked ? false : state.isPublic,
       content: state.content,
-      status: isResumeReady(state.content) ? "READY" : "DRAFT",
+      status:
+        !premiumLocked && isResumeReady(state.content) ? "READY" : "DRAFT",
     });
   };
 
@@ -61,21 +76,28 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
     setExporting(true);
     setExportError("");
     try {
-      const [{ pdf }, { ResumePdfDocument }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("~/app/dash/resumes/[resumeId]/_components/resume-pdf-document"),
-      ]);
       const state = useResumeStore.getState();
-      const blob = await pdf(
-        <ResumePdfDocument
-          data={{
-            title: state.title,
-            template: state.template,
-            accentColor: state.accentColor,
-            content: state.content,
-          }}
-        />,
-      ).toBlob();
+      const response = await fetch(`/api/resumes/${resumeId}/pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: state.title,
+          template: state.selectedTemplateId,
+          theme: state.theme,
+          content: state.content,
+        }),
+      });
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        if (response.status === 402) {
+          setExportError("Upgrade to Premium to export this template.");
+          return;
+        }
+        throw new Error(result?.error ?? "PDF_EXPORT_FAILED");
+      }
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -129,32 +151,46 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
             <label className="hidden items-center gap-2 rounded-full bg-[#edf1ee] px-3 py-2 text-xs font-bold text-[#65706b] sm:flex">
               <input
                 type="checkbox"
-                checked={isPublic}
+                checked={premiumLocked ? false : isPublic}
+                disabled={premiumLocked}
                 onChange={(event) => setPublic(event.target.checked)}
-                className="accent-[#277b67]"
+                className="accent-[#277b67] disabled:opacity-40"
               />
-              Shareable
+              {premiumLocked ? "Preview only" : "Shareable"}
             </label>
-            <button
-              type="button"
-              onClick={exportPdf}
-              disabled={exporting || systemStatus?.pdfGeneration === false}
-              title={
-                systemStatus?.pdfGeneration === false
-                  ? "PDF generation is temporarily disabled"
-                  : undefined
-              }
-              className="button-secondary min-h-9 px-3 text-xs disabled:opacity-50"
-            >
-              {exporting ? (
-                <LoaderCircle className="animate-spin" size={15} />
-              ) : (
-                <Download size={15} />
-              )}
-              <span className="hidden sm:inline">
-                {exporting ? "Rendering…" : "Download PDF"}
-              </span>
-            </button>
+            {premiumLocked ? (
+              <Link
+                href="/pricing"
+                className="button-secondary min-h-9 border-[#d8b268]/45 bg-[#fff8e9] px-3 text-xs text-[#805c24] shadow-[0_0_0_3px_rgba(216,178,104,0.08)]"
+                title="Premium template export"
+              >
+                <Crown size={15} />
+                <span className="hidden sm:inline">Unlock PDF</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={exportPdf}
+                disabled={
+                  exporting || systemStatus?.pdfGeneration === false
+                }
+                title={
+                  systemStatus?.pdfGeneration === false
+                    ? "PDF generation is temporarily disabled"
+                    : undefined
+                }
+                className="button-secondary min-h-9 px-3 text-xs disabled:opacity-50"
+              >
+                {exporting ? (
+                  <LoaderCircle className="animate-spin" size={15} />
+                ) : (
+                  <Download size={15} />
+                )}
+                <span className="hidden sm:inline">
+                  {exporting ? "Rendering…" : "Download PDF"}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={save}
@@ -192,12 +228,9 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
               Schema v3
             </span>
           </div>
-          <ResumeEditorPanels
-            resumeId={resumeId}
-            isPremium={entitlement?.isPremium ?? false}
-          />
+          <ResumeEditorPanels resumeId={resumeId} isPremium={isPremium} />
         </section>
-        <ResumePreview />
+        <ResumePreview isPremium={isPremium} />
       </div>
     </main>
   );

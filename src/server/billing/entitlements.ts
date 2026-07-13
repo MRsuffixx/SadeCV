@@ -1,7 +1,12 @@
 import type { Prisma, PrismaClient } from "../../../generated/prisma";
+import { TEMPLATE_DEFINITIONS } from "~/templates/registry";
 
 export const FREE_MONTHLY_RESUME_LIMIT = 1;
-export const PREMIUM_TEMPLATES = new Set(["EXECUTIVE", "STUDIO"]);
+export const PREMIUM_TEMPLATES = new Set(
+  TEMPLATE_DEFINITIONS.filter((template) => template.isPremium).map(
+    (template) => template.id,
+  ),
+);
 
 type DatabaseClient = PrismaClient | Prisma.TransactionClient;
 
