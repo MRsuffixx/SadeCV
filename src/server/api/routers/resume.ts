@@ -12,6 +12,7 @@ import {
   resumeDraftContentSchema,
   resumeTemplateSchema,
 } from "~/lib/resume-model";
+import { resumeThemeSchema } from "~/templates/schema";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   consumeResumeGrant,
@@ -136,13 +137,14 @@ export const resumeRouter = createTRPCRouter({
           .string()
           .regex(/^#[0-9A-Fa-f]{6}$/)
           .optional(),
+        theme: resumeThemeSchema.optional(),
         content: resumeDraftContentSchema.optional(),
         isPublic: z.boolean().optional(),
         status: z.enum(["DRAFT", "READY", "ARCHIVED"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, content, ...data } = input;
+      const { id, content, theme, ...data } = input;
       if (data.template && PREMIUM_TEMPLATES.has(data.template)) {
         const user = await ctx.db.user.findUniqueOrThrow({
           where: { id: ctx.session.user.id },
@@ -180,6 +182,12 @@ export const resumeRouter = createTRPCRouter({
         where: { id, userId: ctx.session.user.id },
         data: {
           ...data,
+          ...(theme
+            ? {
+                accentColor: theme.accentColor,
+                themeJson: JSON.stringify(theme),
+              }
+            : {}),
           ...(content
             ? {
                 contentJson: JSON.stringify(content),
@@ -212,6 +220,7 @@ export const resumeRouter = createTRPCRouter({
               slug: `${source.slug.slice(0, 46)}-${randomUUID().slice(0, 8)}`,
               template: source.template,
               accentColor: source.accentColor,
+              themeJson: source.themeJson,
               contentJson: source.contentJson,
               contentSchemaVersion: source.contentSchemaVersion,
               status: "DRAFT",

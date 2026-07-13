@@ -6,8 +6,12 @@ import {
   Camera,
   ChevronDown,
   Crown,
+  Eye,
+  Palette,
   Plus,
+  Rows3,
   Trash2,
+  Type,
 } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState, type ReactNode } from "react";
@@ -16,8 +20,12 @@ import { useResumeStore } from "~/app/dash/resumes/[resumeId]/_store/resume-stor
 import type {
   ResumeArrayItemMap,
   ResumeArraySection,
-  ResumeTemplate,
 } from "~/lib/resume-model";
+import { TEMPLATE_DEFINITIONS } from "~/templates/registry";
+import {
+  FONT_PAIRINGS,
+  RESUME_PALETTES,
+} from "~/templates/schema";
 import { useUploadThing } from "~/utils/uploadthing";
 
 export function ResumeEditorPanels({
@@ -1282,64 +1290,188 @@ function CustomSectionsPanel() {
   );
 }
 
-const templates: { value: ResumeTemplate; premium: boolean }[] = [
-  { value: "ATLAS", premium: false },
-  { value: "MONO", premium: false },
-  { value: "EDITORIAL", premium: false },
-  { value: "EXECUTIVE", premium: true },
-  { value: "STUDIO", premium: true },
-];
-
 function StylePanel({ isPremium }: { isPremium: boolean }) {
-  const template = useResumeStore((state) => state.template);
-  const accentColor = useResumeStore((state) => state.accentColor);
+  const template = useResumeStore((state) => state.selectedTemplateId);
+  const theme = useResumeStore((state) => state.theme);
   const setTemplate = useResumeStore((state) => state.setTemplate);
-  const setAccentColor = useResumeStore((state) => state.setAccentColor);
+  const setTheme = useResumeStore((state) => state.setTheme);
   return (
     <SectionPanel
       number="Design"
       title="Visual style"
       description="Template and accent choices for preview and PDF."
     >
-      <span className="field-label">Template</span>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {templates.map(({ value, premium }) => {
-          const locked = premium && !isPremium;
+      <div className="flex items-center gap-2">
+        <Eye size={14} className="text-[#277b67]" />
+        <span className="field-label mb-0">Template collection</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {TEMPLATE_DEFINITIONS.map((definition) => {
+          const previewOnly = definition.isPremium && !isPremium;
           return (
             <button
-              key={value}
+              key={definition.id}
               type="button"
-              disabled={locked}
-              onClick={() => setTemplate(value)}
-              className={`relative rounded-xl border px-3 py-3 text-[10px] font-extrabold transition disabled:cursor-not-allowed disabled:opacity-55 ${
-                template === value
+              onClick={() => setTemplate(definition.id)}
+              className={`relative min-h-24 rounded-xl border px-3 py-3 text-left transition ${
+                template === definition.id
                   ? "border-[#277b67] bg-[#eaf4ef] text-[#185545]"
                   : "border-black/10 bg-white text-[#68716c]"
               }`}
             >
-              {locked ? (
-                <Crown className="absolute top-1.5 right-1.5" size={11} />
+              {previewOnly ? (
+                <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-[#fff2d9] px-1.5 py-1 text-[8px] font-black text-[#8b6226] uppercase">
+                  <Crown size={9} /> Preview
+                </span>
               ) : null}
-              {value}
+              <span className="block pr-12 text-[11px] font-extrabold">
+                {definition.name}
+              </span>
+              <span className="mt-1 block text-[8px] font-black tracking-wider opacity-60 uppercase">
+                {definition.category}
+              </span>
+              <span className="mt-2 block text-[9px] leading-4 font-medium opacity-70">
+                {definition.description}
+              </span>
             </button>
           );
         })}
       </div>
-      <label className="mt-4 block">
-        <span className="field-label">Accent color</span>
-        <div className="flex items-center gap-3 rounded-xl border border-black/10 bg-white p-2">
+
+      <div className="mt-5">
+        <div className="mb-2 flex items-center gap-2">
+          <Palette size={14} className="text-[#277b67]" />
+          <span className="field-label mb-0">Color palette</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {RESUME_PALETTES.map((palette) => (
+            <button
+              key={palette.value}
+              type="button"
+              aria-label={`Use ${palette.name} palette`}
+              title={palette.name}
+              onClick={() => setTheme("accentColor", palette.value)}
+              className={`grid size-9 place-items-center rounded-full border-2 transition ${
+                theme.accentColor.toUpperCase() === palette.value
+                  ? "border-[#172f28]"
+                  : "border-transparent"
+              }`}
+            >
+              <span
+                className="size-6 rounded-full shadow-inner"
+                style={{ backgroundColor: palette.value }}
+              />
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-3 rounded-xl border border-black/10 bg-white p-2">
           <input
             type="color"
-            value={accentColor}
-            onChange={(event) => setAccentColor(event.target.value)}
+            value={theme.accentColor}
+            onChange={(event) => setTheme("accentColor", event.target.value)}
             className="size-10 cursor-pointer rounded-lg border-0 bg-transparent"
           />
           <span className="font-mono text-xs font-bold text-[#626b66]">
-            {accentColor.toUpperCase()}
+            {theme.accentColor.toUpperCase()}
           </span>
         </div>
-      </label>
+      </div>
+
+      <div className="mt-5">
+        <div className="mb-2 flex items-center gap-2">
+          <Type size={14} className="text-[#277b67]" />
+          <span className="field-label mb-0">Typography pairing</span>
+        </div>
+        <div className="space-y-2">
+          {FONT_PAIRINGS.map((pairing) => (
+            <button
+              key={pairing.id}
+              type="button"
+              onClick={() => setTheme("fontPairing", pairing.id)}
+              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left ${
+                theme.fontPairing === pairing.id
+                  ? "border-[#277b67] bg-[#edf6f1]"
+                  : "border-black/10 bg-white"
+              }`}
+            >
+              <span>
+                <span className="block text-[11px] font-extrabold">
+                  {pairing.name}
+                </span>
+                <span className="mt-0.5 block text-[9px] text-[#7f8884]">
+                  {pairing.description}
+                </span>
+              </span>
+              <span
+                className={
+                  pairing.id === "INTER" ? "font-sans" : "font-serif"
+                }
+              >
+                Aa
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <div className="mb-2 flex items-center gap-2">
+          <Rows3 size={14} className="text-[#277b67]" />
+          <span className="field-label mb-0">Document density</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {(["COMPACT", "BALANCED", "SPACIOUS"] as const).map((spacing) => (
+            <button
+              key={spacing}
+              type="button"
+              onClick={() => setTheme("spacing", spacing)}
+              className={`rounded-xl border px-2 py-2.5 text-[9px] font-black ${
+                theme.spacing === spacing
+                  ? "border-[#277b67] bg-[#edf6f1] text-[#185545]"
+                  : "border-black/10 bg-white text-[#707975]"
+              }`}
+            >
+              {spacing === "BALANCED" ? "STANDARD" : spacing}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        <ThemeToggle
+          label="Show visual markers"
+          checked={theme.showIcons}
+          onChange={(value) => setTheme("showIcons", value)}
+        />
+        <ThemeToggle
+          label="Show profile photo"
+          checked={theme.showProfilePhoto}
+          onChange={(value) => setTheme("showProfilePhoto", value)}
+        />
+      </div>
     </SectionPanel>
+  );
+}
+
+function ThemeToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-black/10 bg-white p-3 text-[10px] font-extrabold">
+      {label}
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 accent-[#277b67]"
+      />
+    </label>
   );
 }
 

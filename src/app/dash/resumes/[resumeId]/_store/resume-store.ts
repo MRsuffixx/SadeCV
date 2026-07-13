@@ -11,6 +11,11 @@ import {
   type ResumeRecord,
   type ResumeTemplate,
 } from "~/lib/resume-model";
+import {
+  DEFAULT_RESUME_THEME,
+  parseResumeTheme,
+  type ResumeTheme,
+} from "~/templates/schema";
 
 type PersonalField = Exclude<keyof PersonalInformation, "socials">;
 type SocialField = keyof PersonalInformation["socials"];
@@ -18,15 +23,18 @@ type SocialField = keyof PersonalInformation["socials"];
 type ResumeState = {
   resumeId: string | null;
   title: string;
-  template: ResumeTemplate;
-  accentColor: string;
+  selectedTemplateId: ResumeTemplate;
+  theme: ResumeTheme;
   isPublic: boolean;
   content: ResumeContent;
   saved: boolean;
   hydrate: (resume: ResumeRecord) => void;
   setTitle: (value: string) => void;
   setTemplate: (value: ResumeTemplate) => void;
-  setAccentColor: (value: string) => void;
+  setTheme: <K extends keyof ResumeTheme>(
+    field: K,
+    value: ResumeTheme[K],
+  ) => void;
   setPublic: (value: boolean) => void;
   setPersonal: <K extends PersonalField>(
     field: K,
@@ -80,8 +88,8 @@ function replaceItems(
 export const useResumeStore = create<ResumeState>()((set) => ({
   resumeId: null,
   title: "Untitled CV",
-  template: "ATLAS",
-  accentColor: "#0F766E",
+  selectedTemplateId: "ATLAS",
+  theme: DEFAULT_RESUME_THEME,
   isPublic: false,
   content: createEmptyResumeContent(),
   saved: true,
@@ -89,15 +97,20 @@ export const useResumeStore = create<ResumeState>()((set) => ({
     set({
       resumeId: resume.id,
       title: resume.title,
-      template: resume.template as ResumeTemplate,
-      accentColor: resume.accentColor,
+      selectedTemplateId: resume.template as ResumeTemplate,
+      theme: parseResumeTheme(resume.themeJson, resume.accentColor),
       isPublic: resume.isPublic,
       content: parseResumeContent(resume.contentJson),
       saved: true,
     }),
   setTitle: (title) => set({ title, saved: false }),
-  setTemplate: (template) => set({ template, saved: false }),
-  setAccentColor: (accentColor) => set({ accentColor, saved: false }),
+  setTemplate: (selectedTemplateId) =>
+    set({ selectedTemplateId, saved: false }),
+  setTheme: (field, value) =>
+    set((state) => ({
+      theme: { ...state.theme, [field]: value },
+      saved: false,
+    })),
   setPublic: (isPublic) => set({ isPublic, saved: false }),
   setPersonal: (field, value) =>
     set((state) => ({

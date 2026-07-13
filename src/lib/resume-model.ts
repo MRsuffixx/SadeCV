@@ -1,16 +1,11 @@
 import { z } from "zod";
 
+export {
+  resumeTemplateIdSchema as resumeTemplateSchema,
+  type ResumeTemplate,
+} from "~/templates/schema";
+
 export const RESUME_SCHEMA_VERSION = 3 as const;
-
-export const resumeTemplateSchema = z.enum([
-  "ATLAS",
-  "MONO",
-  "EDITORIAL",
-  "EXECUTIVE",
-  "STUDIO",
-]);
-
-export type ResumeTemplate = z.infer<typeof resumeTemplateSchema>;
 
 const itemIdSchema = z.string().min(1).max(100);
 const shortText = (max = 180) => z.string().trim().max(max).default("");
@@ -474,6 +469,7 @@ export type ResumeRecord = {
   title: string;
   template: string;
   accentColor: string;
+  themeJson?: string;
   contentJson: string;
   contentSchemaVersion?: number;
   status: string;

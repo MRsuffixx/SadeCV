@@ -84,6 +84,7 @@ model Resume {
   slug                 String
   template             String          @default("ATLAS")
   accentColor          String          @default("#0F766E")
+  themeJson            String          @default("{}")
   contentJson          String          @default("{}")
   contentSchemaVersion Int             @default(3)
   status               String          @default("DRAFT")
