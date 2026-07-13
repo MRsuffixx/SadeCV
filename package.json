@@ -23,6 +23,7 @@
     "lint:fix": "eslint . --fix",
     "preview": "next build && next start",
     "start": "next start",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

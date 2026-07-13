@@ -159,10 +159,10 @@ export async function processStripeEvent(
     const session = event.data.object;
     const failed = event.type === "checkout.session.async_payment_failed";
     const kind = session.metadata?.kind?.toUpperCase() ?? "CHECKOUT";
-    const transactionId =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : (session.payment_intent?.id ?? session.id);
+    // A Checkout Session id is present and stable on completed, delayed-success,
+    // and delayed-failure events. PaymentIntent can be null initially, so using
+    // it as the key would create a second ledger row when it appears later.
+    const transactionId = session.id;
     await tx.paymentTransaction.upsert({
       where: {
         provider_providerTransactionId: {
