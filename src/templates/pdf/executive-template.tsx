@@ -133,9 +133,8 @@ export function ExecutivePdfTemplate({
                 {presentation.identity.professionalTitle}
               </Text>
             </View>
-            {/* React PDF images are decorative here and do not expose DOM alt text. */}
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             {showPhoto ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- React PDF Image has no DOM alt prop.
               <Image
                 src={presentation.identity.avatarUrl}
                 style={styles.avatar}

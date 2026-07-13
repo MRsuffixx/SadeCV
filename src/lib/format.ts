@@ -5,7 +5,8 @@ export function formatCurrency(
   currency: string | null | undefined,
   locale = "en-US",
 ) {
-  const normalized = currency?.trim().toUpperCase() || "UNKNOWN";
+  const candidate = currency?.trim().toUpperCase() ?? "";
+  const normalized = candidate.length > 0 ? candidate : "UNKNOWN";
   const key = `${locale}:${normalized}`;
 
   try {

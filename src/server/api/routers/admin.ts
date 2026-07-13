@@ -75,6 +75,8 @@ function auditData(input: {
 }
 
 type AuditActor = { id: string; email: string; name: string | null };
+type AuditMetadata =
+  Record<string, unknown> | unknown[] | string | number | boolean | null;
 
 function auditError(error: unknown) {
   if (error instanceof TRPCError)
@@ -90,7 +92,7 @@ async function auditedMutation<T>(
     action: string;
     entityType: string;
     entityId?: string;
-    metadata?: unknown | ((result: T) => unknown);
+    metadata?: AuditMetadata | ((result: T) => AuditMetadata);
   },
   operation: () => Promise<T>,
 ) {

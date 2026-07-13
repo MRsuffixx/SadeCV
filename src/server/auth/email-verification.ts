@@ -21,9 +21,8 @@ function localEmailDevelopment() {
 }
 
 export function canDeliverVerificationEmail() {
-  return Boolean(
-    (env.RESEND_API_KEY && env.EMAIL_FROM) || localEmailDevelopment(),
-  );
+  if (localEmailDevelopment()) return true;
+  return Boolean(env.RESEND_API_KEY && env.EMAIL_FROM);
 }
 
 function escapeHtml(value: string) {
@@ -94,7 +93,7 @@ export async function consumeEmailVerification(token: string) {
     const verification = await tx.verificationToken.findUnique({
       where: { token: hash },
     });
-    if (!verification || !verification.identifier.startsWith(TOKEN_PREFIX)) {
+    if (!verification?.identifier.startsWith(TOKEN_PREFIX)) {
       return false;
     }
     if (verification.expires <= new Date()) {

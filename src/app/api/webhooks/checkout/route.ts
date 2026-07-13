@@ -8,7 +8,6 @@ import { getStripe } from "~/server/payments/stripe";
 import {
   parseIyzicoEpochDate,
   retrieveIyzicoSubscriptionDetails,
-  type IyzicoSubscriptionRecord,
 } from "~/server/payments/iyzico";
 import {
   verifyIyzicoWebhookSignature,
@@ -32,16 +31,15 @@ function subscriptionRecord(
   referenceCode: string,
 ) {
   const data = result.data;
-  const direct = data as IyzicoSubscriptionRecord | undefined;
   return (
     data?.items?.find(
       (item) =>
         item.referenceCode === referenceCode ||
         item.subscriptionReferenceCode === referenceCode,
     ) ??
-    (direct?.referenceCode === referenceCode ||
-    direct?.subscriptionReferenceCode === referenceCode
-      ? direct
+    (data?.referenceCode === referenceCode ||
+    data?.subscriptionReferenceCode === referenceCode
+      ? data
       : null)
   );
 }

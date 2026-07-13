@@ -36,8 +36,7 @@ export async function POST(request: Request) {
     where: { tokenHash },
   });
   if (
-    !checkout ||
-    checkout.provider !== "IYZICO" ||
+    checkout?.provider !== "IYZICO" ||
     checkout.consumedAt ||
     checkout.status !== "PENDING" ||
     checkout.expiresAt <= new Date()
@@ -83,7 +82,7 @@ export async function POST(request: Request) {
       const donation = await tx.donation.findUnique({
         where: { id: checkout.referenceId },
       });
-      if (!donation || donation.provider !== "IYZICO") {
+      if (donation?.provider !== "IYZICO") {
         throw new Error("IYZICO_DONATION_CORRELATION_FAILED");
       }
       await tx.donation.update({
