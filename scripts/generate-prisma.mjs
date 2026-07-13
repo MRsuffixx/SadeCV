@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,9 +37,40 @@ const result = spawnSync(
   {
     cwd: projectRoot,
     env: process.env,
-    stdio: "inherit",
+    encoding: "utf8",
   },
 );
 
-process.exit(result.status ?? 1);
+if (result.stdout) process.stdout.write(result.stdout);
+if (result.stderr) process.stderr.write(result.stderr);
 
+if (result.status === 0) process.exit(0);
+
+const failureOutput = [result.error?.message, result.stderr]
+  .filter(Boolean)
+  .join("\n");
+const lockedEngineRename = failureOutput.match(
+  /EPERM:[\s\S]*?rename '([^']+query_engine-windows\.dll\.node\.tmp\d+)' -> '([^']+query_engine-windows\.dll\.node)'/,
+);
+
+if (process.platform === "win32" && lockedEngineRename) {
+  const [, temporaryEngine, installedEngine] = lockedEngineRename;
+  if (
+    temporaryEngine &&
+    installedEngine &&
+    existsSync(temporaryEngine) &&
+    existsSync(installedEngine)
+  ) {
+    const digest = (path) =>
+      createHash("sha256").update(readFileSync(path)).digest("hex");
+
+    if (digest(temporaryEngine) === digest(installedEngine)) {
+      console.warn(
+        "Prisma's identical Windows query engine is locked; using the already generated client.",
+      );
+      process.exit(0);
+    }
+  }
+}
+
+process.exit(result.status ?? 1);
