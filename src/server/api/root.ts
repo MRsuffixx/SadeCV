@@ -1,3 +1,4 @@
+import { adminRouter } from "~/server/api/routers/admin";
 import { billingRouter } from "~/server/api/routers/billing";
 import { postRouter } from "~/server/api/routers/post";
 import { resumeRouter } from "~/server/api/routers/resume";
@@ -28,4 +29,3 @@ export type AppRouter = typeof appRouter;
  *       ^? Post[]
  */
 export const createCaller = createCallerFactory(appRouter);
-import { adminRouter } from "~/server/api/routers/admin";

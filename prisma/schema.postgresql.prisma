@@ -37,27 +37,27 @@ model Session {
 }
 
 model User {
-  id                              String         @id @default(cuid())
+  id                              String               @id @default(cuid())
   name                            String?
-  email                           String         @unique
+  email                           String               @unique
   emailVerified                   DateTime?
   image                           String?
   passwordHash                    String?
-  role                            String         @default("USER")
-  tier                            String         @default("FREE")
-  tierStatus                      String         @default("ACTIVE")
+  role                            String               @default("USER")
+  tier                            String               @default("FREE")
+  tierStatus                      String               @default("ACTIVE")
   tierExpiresAt                   DateTime?
-  stripeCustomerId                String?        @unique
-  stripeSubscriptionId            String?        @unique
+  stripeCustomerId                String?              @unique
+  stripeSubscriptionId            String?              @unique
   iyzicoCustomerReferenceCode     String?
-  iyzicoSubscriptionReferenceCode String?        @unique
-  locale                          String         @default("en")
+  iyzicoSubscriptionReferenceCode String?              @unique
+  locale                          String               @default("en")
   bannedAt                        DateTime?
   banReason                       String?
   adminNotes                      String?
   lastLoginAt                     DateTime?
-  createdAt                       DateTime       @default(now())
-  updatedAt                       DateTime       @updatedAt
+  createdAt                       DateTime             @default(now())
+  updatedAt                       DateTime             @updatedAt
   accounts                        Account[]
   sessions                        Session[]
   resumes                         Resume[]
@@ -65,8 +65,8 @@ model User {
   subscriptions                   Subscription[]
   donations                       Donation[]
   paymentTransactions             PaymentTransaction[]
-  featureFlagsUpdated             FeatureFlag[] @relation("FeatureFlagUpdatedBy")
-  adminAuditLogs                  AdminAuditLog[] @relation("AdminAuditActor")
+  featureFlagsUpdated             FeatureFlag[]        @relation("FeatureFlagUpdatedBy")
+  adminAuditLogs                  AdminAuditLog[]      @relation("AdminAuditActor")
 }
 
 model VerificationToken {
@@ -161,14 +161,14 @@ model Donation {
 }
 
 model PaymentEvent {
-  id          String   @id
-  provider    String
-  type        String
-  payloadHash String?
-  status      String   @default("PROCESSED")
+  id           String    @id
+  provider     String
+  type         String
+  payloadHash  String?
+  status       String    @default("PROCESSED")
   errorMessage String?
-  processedAt DateTime?
-  createdAt   DateTime @default(now())
+  processedAt  DateTime?
+  createdAt    DateTime  @default(now())
 
   @@index([provider, createdAt])
 }
