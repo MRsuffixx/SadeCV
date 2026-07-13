@@ -82,7 +82,6 @@ PR göndermeden önce çalıştırın:
 
 ```bash
 pnpm check
-pnpm format:check
 pnpm build
 ```
 

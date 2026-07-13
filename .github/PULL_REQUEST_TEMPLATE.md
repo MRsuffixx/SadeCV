@@ -18,7 +18,6 @@
 ## Doğrulama
 
 - [ ] `pnpm check`
-- [ ] `pnpm format:check`
 - [ ] `pnpm build`
 - [ ] İlgili kullanıcı akışlarını manuel doğruladım
 

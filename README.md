@@ -476,13 +476,12 @@ CI şu kontrolleri çalıştırır:
 ```bash
 pnpm install --frozen-lockfile
 pnpm check
-pnpm format:check
 pnpm build
 ```
 
 TypeScript'te `strict`, `noUncheckedIndexedAccess` ve typed ESLint kuralları etkindir.
 
-> Projede henüz otomatik birim, entegrasyon veya uçtan uca test altyapısı bulunmamaktadır. Bu nedenle `pnpm test` komutu yoktur; mevcut kalite kapısı lint, typecheck, format ve production build kontrollerinden oluşur.
+> Projede henüz otomatik birim, entegrasyon veya uçtan uca test altyapısı bulunmamaktadır. Bu nedenle `pnpm test` komutu yoktur; mevcut CI kalite kapısı lint, typecheck ve production build kontrollerinden oluşur.
 
 ## Dağıtım
 
