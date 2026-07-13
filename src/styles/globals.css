@@ -146,21 +146,22 @@
   }
 }
 
-@media print {
-  body * {
-    visibility: hidden;
-  }
+@keyframes support-float {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  12% { opacity: 0.9; }
+  100% { transform: translateY(-110vh) rotate(220deg); opacity: 0; }
+}
 
-  .cv-print-area,
-  .cv-print-area * {
-    visibility: visible;
-  }
+@keyframes support-heart {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  35% { transform: scale(1.08) rotate(3deg); }
+  55% { transform: scale(0.98) rotate(-1deg); }
+}
 
-  .cv-print-area {
-    position: absolute;
-    inset: 0;
-    width: 210mm;
-    height: 297mm;
-    box-shadow: none;
-  }
+.support-particle {
+  animation: support-float 3s ease-in infinite;
+}
+
+.support-heart {
+  animation: support-heart 1.8s ease-in-out infinite;
 }

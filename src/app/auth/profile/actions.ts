@@ -26,7 +26,8 @@ async function authorizeSensitiveAction(token: string) {
     windowSeconds: 15 * 60,
   });
 
-  if (!allowed) return { error: "Too many attempts. Try again later." } as const;
+  if (!allowed)
+    return { error: "Too many attempts. Try again later." } as const;
   if (!(await verifyTurnstile(token, ip))) {
     return { error: "Human verification expired. Please try again." } as const;
   }
@@ -80,7 +81,9 @@ export async function updatePasswordAction(
     .safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Use a stronger password." };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Use a stronger password.",
+    };
   }
 
   const access = await authorizeSensitiveAction(parsed.data.turnstileToken);
@@ -105,11 +108,14 @@ export async function updatePasswordAction(
     data: { passwordHash: await hash(parsed.data.newPassword, 12) },
   });
 
-  return { success: user.passwordHash ? "Password changed." : "Password added." };
+  return {
+    success: user.passwordHash ? "Password changed." : "Password added.",
+  };
 }
 
 export async function linkGoogleAction(formData: FormData) {
-  const token = String(formData.get("turnstileToken") ?? "");
+  const rawToken = formData.get("turnstileToken");
+  const token = typeof rawToken === "string" ? rawToken : "";
   const access = await authorizeSensitiveAction(token);
   if ("error" in access) return;
 
@@ -122,7 +128,8 @@ export async function unlinkGoogleAction(
   _previousState: ProfileActionState,
   formData: FormData,
 ): Promise<ProfileActionState> {
-  const token = String(formData.get("turnstileToken") ?? "");
+  const rawToken = formData.get("turnstileToken");
+  const token = typeof rawToken === "string" ? rawToken : "";
   const access = await authorizeSensitiveAction(token);
   if ("error" in access) return access;
 
@@ -146,4 +153,3 @@ export async function unlinkGoogleAction(
 export async function signOutAction() {
   await signOut({ redirectTo: "/" });
 }
-

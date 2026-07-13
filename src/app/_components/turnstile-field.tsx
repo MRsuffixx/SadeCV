@@ -22,7 +22,13 @@ declare global {
   }
 }
 
-export function TurnstileField({ className = "" }: { className?: string }) {
+export function TurnstileField({
+  className = "",
+  onTokenChange,
+}: {
+  className?: string;
+  onTokenChange?: (token: string) => void;
+}) {
   const generatedId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -64,6 +70,8 @@ export function TurnstileField({ className = "" }: { className?: string }) {
       }
     };
   }, [renderWidget]);
+
+  useEffect(() => onTokenChange?.(token), [onTokenChange, token]);
 
   return (
     <div className={className}>

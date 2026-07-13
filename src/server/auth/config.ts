@@ -23,7 +23,6 @@ declare module "next-auth" {
       tier: string;
     } & DefaultSession["user"];
   }
-
 }
 
 const credentialsSchema = z.object({
@@ -45,10 +44,10 @@ const providers: NextAuthConfig["providers"] = [
       if (!parsed.success) return null;
 
       const ip = getClientIp(request.headers);
-      const allowed = await rateLimit(
-        `auth:login:${ip}:${parsed.data.email}`,
-        { limit: 8, windowSeconds: 15 * 60 },
-      );
+      const allowed = await rateLimit(`auth:login:${ip}:${parsed.data.email}`, {
+        limit: 8,
+        windowSeconds: 15 * 60,
+      });
       if (!allowed) return null;
 
       const isHuman = await verifyTurnstile(parsed.data.turnstileToken, ip);
@@ -104,8 +103,8 @@ export const authConfig = {
       ...session,
       user: {
         ...session.user,
-        id: String(token.id ?? token.sub),
-        tier: String(token.tier ?? "FREE"),
+        id: typeof token.id === "string" ? token.id : (token.sub ?? ""),
+        tier: typeof token.tier === "string" ? token.tier : "FREE",
       },
     }),
   },

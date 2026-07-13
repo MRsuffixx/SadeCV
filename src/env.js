@@ -19,6 +19,15 @@ export const env = createEnv({
     VALKEY_URL: z.string().url().optional(),
     APP_DOMAIN: z.string().url().default("http://localhost:3000"),
     APP_PORT: z.coerce.number().int().positive().default(3000),
+    UPLOADTHING_TOKEN: z.string().optional(),
+    STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+    STRIPE_PREMIUM_PRICE_ID: z.string().startsWith("price_").optional(),
+    IYZICO_API_KEY: z.string().optional(),
+    IYZICO_SECRET_KEY: z.string().optional(),
+    IYZICO_MERCHANT_ID: z.string().optional(),
+    IYZICO_BASE_URL: z.string().url().optional(),
+    IYZICO_PREMIUM_PLAN_REFERENCE_CODE: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -47,9 +56,18 @@ export const env = createEnv({
     VALKEY_URL: process.env.VALKEY_URL,
     APP_DOMAIN: process.env.APP_DOMAIN,
     APP_PORT: process.env.APP_PORT,
+    UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PREMIUM_PRICE_ID: process.env.STRIPE_PREMIUM_PRICE_ID,
+    IYZICO_API_KEY: process.env.IYZICO_API_KEY,
+    IYZICO_SECRET_KEY: process.env.IYZICO_SECRET_KEY,
+    IYZICO_MERCHANT_ID: process.env.IYZICO_MERCHANT_ID,
+    IYZICO_BASE_URL: process.env.IYZICO_BASE_URL,
+    IYZICO_PREMIUM_PLAN_REFERENCE_CODE:
+      process.env.IYZICO_PREMIUM_PLAN_REFERENCE_CODE,
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_TURNSTILE_SITE_KEY:
-      process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

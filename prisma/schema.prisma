@@ -36,22 +36,29 @@ model Session {
 }
 
 model User {
-    id            String    @id @default(cuid())
-    name          String?
-    email         String    @unique
-    emailVerified DateTime?
-    image         String?
-    passwordHash  String?
-    role          String    @default("USER")
-    tier          String    @default("FREE")
-    tierStatus    String    @default("ACTIVE")
-    tierExpiresAt DateTime?
-    locale        String    @default("en")
-    createdAt     DateTime  @default(now())
-    updatedAt     DateTime  @updatedAt
-    accounts      Account[]
-    sessions      Session[]
-    resumes       Resume[]
+    id                              String         @id @default(cuid())
+    name                            String?
+    email                           String         @unique
+    emailVerified                   DateTime?
+    image                           String?
+    passwordHash                    String?
+    role                            String         @default("USER")
+    tier                            String         @default("FREE")
+    tierStatus                      String         @default("ACTIVE")
+    tierExpiresAt                   DateTime?
+    stripeCustomerId                String?        @unique
+    stripeSubscriptionId            String?        @unique
+    iyzicoCustomerReferenceCode     String?
+    iyzicoSubscriptionReferenceCode String?        @unique
+    locale                          String         @default("en")
+    createdAt                       DateTime       @default(now())
+    updatedAt                       DateTime       @updatedAt
+    accounts                        Account[]
+    sessions                        Session[]
+    resumes                         Resume[]
+    usageGrants                     UsageGrant[]
+    subscriptions                   Subscription[]
+    donations                       Donation[]
 }
 
 model VerificationToken {
@@ -90,4 +97,65 @@ model ResumeVersion {
     resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
     @@index([resumeId, createdAt])
+}
+
+model UsageGrant {
+    id          String   @id @default(cuid())
+    userId      String
+    kind        String
+    periodKey   String
+    periodStart DateTime
+    periodEnd   DateTime
+    resourceId  String?
+    createdAt   DateTime @default(now())
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, kind, periodKey])
+    @@index([userId, periodEnd])
+}
+
+model Subscription {
+    id                     String    @id @default(cuid())
+    userId                 String
+    provider               String
+    providerCustomerId     String?
+    providerSubscriptionId String
+    plan                   String    @default("PREMIUM")
+    status                 String
+    currentPeriodEnd       DateTime?
+    cancelAtPeriodEnd      Boolean   @default(false)
+    createdAt              DateTime  @default(now())
+    updatedAt              DateTime  @updatedAt
+    user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerSubscriptionId])
+    @@index([userId, status])
+}
+
+model Donation {
+    id                String    @id @default(cuid())
+    userId            String?
+    provider          String
+    providerSessionId String?   @unique
+    providerPaymentId String?
+    amount            Int
+    currency          String
+    status            String    @default("PENDING")
+    supporterEmail    String?
+    createdAt         DateTime  @default(now())
+    paidAt            DateTime?
+    user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+    @@index([status, createdAt])
+    @@index([userId, createdAt])
+}
+
+model PaymentEvent {
+    id          String   @id
+    provider    String
+    type        String
+    payloadHash String?
+    createdAt   DateTime @default(now())
+
+    @@index([provider, createdAt])
 }

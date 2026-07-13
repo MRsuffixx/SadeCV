@@ -22,9 +22,11 @@ export function Brand({
         S
       </span>
       <span className={inverse ? "text-white" : "text-[#171a18]"}>
-        Sade<span className={inverse ? "text-[#b8e3d2]" : "text-[#277b67]"}>CV</span>
+        Sade
+        <span className={inverse ? "text-[#b8e3d2]" : "text-[#277b67]"}>
+          CV
+        </span>
       </span>
     </Link>
   );
 }
-

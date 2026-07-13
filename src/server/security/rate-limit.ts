@@ -4,8 +4,7 @@ type Bucket = { count: number; resetAt: number };
 
 const memoryBuckets = new Map<string, Bucket>();
 let valkeyClientPromise:
-  | Promise<Awaited<ReturnType<typeof createValkeyClient>>>
-  | undefined;
+  Promise<Awaited<ReturnType<typeof createValkeyClient>>> | undefined;
 
 async function createValkeyClient() {
   const { createClient } = await import("redis");
@@ -74,9 +73,5 @@ export async function rateLimit(
     options.windowSeconds,
   );
 
-  return (
-    distributed ??
-    checkMemory(key, options.limit, options.windowSeconds)
-  );
+  return distributed ?? checkMemory(key, options.limit, options.windowSeconds);
 }
-

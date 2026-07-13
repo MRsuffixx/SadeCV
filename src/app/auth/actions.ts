@@ -16,7 +16,8 @@ export type AuthActionState = {
 };
 
 export async function googleAuthAction(formData: FormData) {
-  const token = String(formData.get("turnstileToken") ?? "");
+  const rawToken = formData.get("turnstileToken");
+  const token = typeof rawToken === "string" ? rawToken : "";
   const requestHeaders = await headers();
   const ip = getClientIp(requestHeaders);
   const allowed = await rateLimit(`auth:google:${ip}`, {

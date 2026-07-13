@@ -21,7 +21,14 @@ export const metadata: Metadata = {
       "A calm, intelligent workspace for creating exceptional professional CVs.",
     type: "website",
     siteName: "SadeCV",
-    images: [{ url: "/og.png", width: 1792, height: 921, alt: "SadeCV — Your story, clearly told." }],
+    images: [
+      {
+        url: "/og.png",
+        width: 1792,
+        height: 921,
+        alt: "SadeCV — Your story, clearly told.",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
