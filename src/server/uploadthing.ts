@@ -13,7 +13,10 @@ const f = createUploadthing();
 async function authenticatedUser() {
   const session = await auth();
   if (!session?.user?.id) {
-    throw new UploadThingError({ code: "UNAUTHORIZED" });
+    throw new UploadThingError({
+      code: "FORBIDDEN",
+      message: "Authentication is required.",
+    });
   }
   const user = await db.user.findUnique({
     where: { id: session.user.id },
