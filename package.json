@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/generate-prisma.mjs && next build",
+    "admin:grant": "node --env-file=.env scripts/grant-admin.mjs",
     "check": "eslint . && tsc --noEmit",
     "db:generate": "prisma migrate dev",
     "db:generate:client": "node scripts/generate-prisma.mjs",
