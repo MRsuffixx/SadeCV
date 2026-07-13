@@ -1,0 +1,84 @@
+SadeCV SOURCE-AVAILABLE LICENSE
+Version 1.0 — 13 July 2026
+
+Copyright © 2026 SadeCV. All rights reserved.
+
+This license is not an open-source license. Availability of the Source Code does not place it in the public domain and does not grant the rights normally associated with open-source software.
+
+1. Definitions
+
+“Licensor” means the copyright holder or holders of SadeCV.
+
+“Software” means the SadeCV source code, assets, database schemas, documentation, designs, templates, branding, and all other materials distributed with this license.
+
+“Source Code” means the human-readable form of the Software made visible by the Licensor.
+
+“Commercial Use” means any use intended for or directed toward commercial advantage, monetary compensation, revenue generation, business operation, customer acquisition, advertising, subscription services, paid services, or other financial benefit, whether direct or indirect.
+
+2. Limited Permission to Inspect
+
+Subject to this license, the Licensor grants you a limited, personal, non-exclusive, non-transferable, revocable permission to view the Source Code through the repository interface solely for:
+
+(a) private study and technical evaluation;
+(b) learning general software-development concepts, patterns, and techniques; and
+(c) gaining inspiration from non-protectable ideas and general approaches without copying protected expression.
+
+This permission does not include a right to download, clone, reproduce, execute, compile, build, install, host, deploy, publish, distribute, modify, translate, or create derivative works from the Software.
+
+Incidental copies created automatically by a web browser solely to display the repository are permitted only for the duration and purpose of that display.
+
+3. Restrictions
+
+Unless you have prior express written permission from the Licensor, you must not, and must not enable any other person or entity to:
+
+(a) copy all or any substantial, distinctive, or recognisable portion of the Software;
+(b) download, clone, mirror, archive, scrape, or otherwise retain the Software;
+(c) execute, compile, build, install, host, deploy, or provide access to the Software;
+(d) modify, adapt, translate, or create a derivative work based on the Software;
+(e) redistribute, sublicense, sell, lease, transfer, publish, or otherwise make the Software available;
+(f) use the Software or any derivative for Commercial Use;
+(g) operate a product or service that is identical or substantially similar to, competitive with, or a substitute for SadeCV;
+(h) use the Software to provide CV-building, résumé-building, document-generation, template, subscription, payment, administration, or related services;
+(i) remove, alter, conceal, or misrepresent any copyright, license, attribution, or proprietary notice;
+(j) use the SadeCV name, logo, visual identity, trade dress, domain names, or other brand elements; or
+(k) represent that your project, product, or service is endorsed by, affiliated with, or derived with permission from SadeCV.
+
+Learning a general idea, pattern, or technique from the Source Code does not permit copying its implementation, structure, text, visual design, templates, or other protected expression.
+
+4. Contributions and Authorised Development
+
+The Licensor may grant specific people written permission to download, run, modify, or test the Software for contribution, employment, contracting, security research, or another stated purpose. Such permission is limited to its written scope and does not grant any independent right to distribute, deploy, or commercially use the Software.
+
+Unless a separate written agreement states otherwise, any contribution intentionally submitted to the Licensor for inclusion in SadeCV may be used, reproduced, modified, distributed, sublicensed, and relicensed by the Licensor without restriction or compensation. You represent that you have the legal right to submit that contribution.
+
+5. Third-Party Components
+
+Third-party libraries and components included with or referenced by the Software remain subject to their own licenses. This license applies only to the portions of the Software for which the Licensor holds the relevant rights and does not limit rights independently granted by third-party licenses.
+
+6. No Trademark License
+
+No trademark, service mark, logo, domain name, or other brand right is granted under this license.
+
+7. Termination
+
+Your permission under this license terminates automatically and immediately if you breach any term. Upon termination, you must stop all use of the Software and permanently delete every copy in your possession or control. Sections intended by their nature to survive termination remain effective.
+
+8. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED “AS IS” AND “AS AVAILABLE”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, SECURITY, RELIABILITY, OR AVAILABILITY.
+
+9. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR WILL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, CONSEQUENTIAL, OR OTHER DAMAGES ARISING FROM OR RELATED TO THE SOFTWARE OR THIS LICENSE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+10. No Waiver; Severability
+
+A failure to enforce any provision is not a waiver. If any provision is held unenforceable, it will be modified only to the minimum extent necessary, and the remaining provisions will continue in effect.
+
+11. Entire License
+
+This license is the entire permission granted with the Software unless the Licensor provides a separate written agreement. No right is granted by implication, estoppel, or otherwise.
+
+12. Permission Requests
+
+Requests for contribution access, commercial licensing, or any use outside Section 2 may be sent to hello@sadecv.com. Permission is effective only when expressly granted in writing by the Licensor.
