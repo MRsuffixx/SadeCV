@@ -15,6 +15,22 @@ export type AuthActionState = {
   error?: string;
 };
 
+export async function googleAuthAction(formData: FormData) {
+  const token = String(formData.get("turnstileToken") ?? "");
+  const requestHeaders = await headers();
+  const ip = getClientIp(requestHeaders);
+  const allowed = await rateLimit(`auth:google:${ip}`, {
+    limit: 8,
+    windowSeconds: 15 * 60,
+  });
+
+  if (!allowed || !(await verifyTurnstile(token, ip))) {
+    redirect("/auth/login?error=verification");
+  }
+
+  await signIn("google", { redirectTo: "/dash" });
+}
+
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name.").max(80),
   email: z.string().trim().toLowerCase().email("Enter a valid email address."),
@@ -109,4 +125,3 @@ export async function loginAction(
 
   return {};
 }
-
