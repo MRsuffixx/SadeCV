@@ -16,14 +16,14 @@ async function authenticatedUser() {
     throw new UploadThingError({
       code: "FORBIDDEN",
       message: "Authentication is required.",
-    });
+    }) as Error;
   }
   const user = await db.user.findUnique({
     where: { id: session.user.id },
     select: { id: true, bannedAt: true },
   });
   if (!user || user.bannedAt) {
-    throw new UploadThingError({ code: "FORBIDDEN" });
+    throw new UploadThingError({ code: "FORBIDDEN" }) as Error;
   }
   return session.user;
 }
@@ -52,7 +52,9 @@ export const uploadRouter = {
         where: { id: input.resumeId, userId: user.id },
         select: { id: true },
       });
-      if (!resume) throw new UploadThingError({ code: "NOT_FOUND" });
+      if (!resume) {
+        throw new UploadThingError({ code: "NOT_FOUND" }) as Error;
+      }
       return { userId: user.id, resumeId: resume.id };
     })
     .onUploadComplete(({ file, metadata }) => ({

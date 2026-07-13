@@ -220,7 +220,8 @@ export const adminRouter = createTRPCRouter({
         },
       });
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-      const { passwordHash: _passwordHash, ...safeUser } = user;
+      const { passwordHash, ...safeUser } = user;
+      void passwordHash;
       return safeUser;
     }),
 
