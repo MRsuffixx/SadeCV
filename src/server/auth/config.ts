@@ -23,7 +23,15 @@ declare module "next-auth" {
       tier: string;
       role: "USER" | "ADMIN";
       banned: boolean;
+      locale: "en" | "tr";
     } & DefaultSession["user"];
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    authRefreshedAt?: number;
+    locale?: "en" | "tr";
   }
 }
 
@@ -59,7 +67,9 @@ const providers: NextAuthConfig["providers"] = [
         where: { email: parsed.data.email },
       });
 
-      if (!user?.passwordHash || user.bannedAt) return null;
+      if (!user?.passwordHash || !user.emailVerified || user.bannedAt) {
+        return null;
+      }
       const validPassword = await compare(
         parsed.data.password,
         user.passwordHash,
@@ -94,21 +104,33 @@ export const authConfig = {
     error: "/auth/login",
   },
   callbacks: {
-    jwt: async ({ token, user }) => {
+    signIn: ({ account, profile }) =>
+      account?.provider !== "google" || profile?.email_verified === true,
+    jwt: async ({ token, user, trigger }) => {
       if (user) {
         token.id = user.id;
         token.tier = "tier" in user ? String(user.tier) : "FREE";
         token.role =
           "role" in user && user.role === "ADMIN" ? "ADMIN" : "USER";
         token.banned = "bannedAt" in user && Boolean(user.bannedAt);
-      } else if (typeof token.id === "string") {
+        token.locale =
+          "locale" in user && user.locale === "tr" ? "tr" : "en";
+        token.authRefreshedAt = Date.now();
+      } else if (
+        typeof token.id === "string" &&
+        (trigger === "update" ||
+          !token.authRefreshedAt ||
+          Date.now() - token.authRefreshedAt > 5 * 60 * 1_000)
+      ) {
         const currentUser = await db.user.findUnique({
           where: { id: token.id },
-          select: { tier: true, role: true, bannedAt: true },
+          select: { tier: true, role: true, bannedAt: true, locale: true },
         });
         token.tier = currentUser?.tier ?? "FREE";
         token.role = currentUser?.role === "ADMIN" ? "ADMIN" : "USER";
         token.banned = !currentUser || Boolean(currentUser.bannedAt);
+        token.locale = currentUser?.locale === "tr" ? "tr" : "en";
+        token.authRefreshedAt = Date.now();
       }
       return token;
     },
@@ -120,15 +142,21 @@ export const authConfig = {
         tier: typeof token.tier === "string" ? token.tier : "FREE",
         role: token.role === "ADMIN" ? "ADMIN" : "USER",
         banned: Boolean(token.banned),
+        locale: token.locale === "tr" ? "tr" : "en",
       },
     }),
   },
   events: {
-    signIn: async ({ user }) => {
+    signIn: async ({ user, account }) => {
       if (user.id) {
         await db.user.updateMany({
           where: { id: user.id, bannedAt: null },
-          data: { lastLoginAt: new Date() },
+          data: {
+            lastLoginAt: new Date(),
+            ...(account?.provider === "google"
+              ? { emailVerified: new Date() }
+              : {}),
+          },
         });
       }
     },

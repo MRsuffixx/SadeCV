@@ -4,23 +4,6 @@
  */
 import "./src/env.js";
 
-const isDev = process.env.NODE_ENV !== "production";
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com https://*.iyzipay.com https://*.iyzico.com`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.ufs.sh https://utfs.io https://*.iyzipay.com https://*.iyzico.com",
-  "font-src 'self' data:",
-  "connect-src 'self' https://challenges.cloudflare.com https://*.ufs.sh https://*.ingest.uploadthing.com https://uploadthing.com https://*.iyzipay.com https://*.iyzico.com",
-  "frame-src 'self' blob: https://challenges.cloudflare.com https://*.iyzipay.com https://*.iyzico.com https://checkout.stripe.com",
-  "form-action 'self' https://*.iyzipay.com https://*.iyzico.com https://checkout.stripe.com",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "upgrade-insecure-requests",
-].join("; ");
-
 /** @type {import("next").NextConfig} */
 const config = {
   poweredByHeader: false,
@@ -31,7 +14,6 @@ const config = {
       {
         source: "/(.*)",
         headers: [
-          { key: "Content-Security-Policy", value: contentSecurityPolicy },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },

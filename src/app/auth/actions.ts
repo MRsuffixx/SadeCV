@@ -9,18 +9,31 @@ import { z } from "zod";
 import { Prisma } from "../../../generated/prisma";
 import { db } from "~/server/db";
 import { signIn } from "~/server/auth";
+import {
+  canDeliverVerificationEmail,
+  issueEmailVerification,
+} from "~/server/auth/email-verification";
+import { hasTrustedOrigin } from "~/server/security/origin";
 import { rateLimit } from "~/server/security/rate-limit";
 import { getClientIp, verifyTurnstile } from "~/server/security/turnstile";
 import { isFeatureEnabled } from "~/server/system/feature-flags";
 
 export type AuthActionState = {
   error?: string;
+  success?: string;
+  developmentUrl?: string;
 };
+
+async function trustedActionHeaders() {
+  const requestHeaders = await headers();
+  return hasTrustedOrigin(requestHeaders) ? requestHeaders : null;
+}
 
 export async function googleAuthAction(formData: FormData) {
   const rawToken = formData.get("turnstileToken");
   const token = typeof rawToken === "string" ? rawToken : "";
-  const requestHeaders = await headers();
+  const requestHeaders = await trustedActionHeaders();
+  if (!requestHeaders) redirect("/auth/login?error=origin");
   const ip = getClientIp(requestHeaders);
   const allowed = await rateLimit(`auth:google:${ip}`, {
     limit: 8,
@@ -66,7 +79,12 @@ export async function registerAction(
     return { error: "New registrations are temporarily disabled." };
   }
 
-  const requestHeaders = await headers();
+  if (!canDeliverVerificationEmail()) {
+    return { error: "Email verification is not configured." };
+  }
+
+  const requestHeaders = await trustedActionHeaders();
+  if (!requestHeaders) return { error: "This request could not be verified." };
   const ip = getClientIp(requestHeaders);
   const allowed = await rateLimit(`auth:register:${ip}`, {
     limit: 5,
@@ -92,14 +110,17 @@ export async function registerAction(
 
   const passwordHash = await hash(parsed.data.password, 12);
 
+  let createdEmail: string;
   try {
-    await db.user.create({
+    const user = await db.user.create({
       data: {
         name: parsed.data.name,
         email: parsed.data.email,
         passwordHash,
       },
+      select: { email: true },
     });
+    createdEmail = user.email;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -110,7 +131,59 @@ export async function registerAction(
     return { error: "We couldn't create your account. Please try again." };
   }
 
-  redirect("/auth/login?registered=1");
+  const delivery = await issueEmailVerification(createdEmail);
+  const destination = new URL("/auth/verify-email", "http://internal");
+  destination.searchParams.set("email", createdEmail);
+  destination.searchParams.set("sent", delivery.sent ? "1" : "0");
+  if (delivery.developmentUrl) {
+    destination.searchParams.set("developmentUrl", delivery.developmentUrl);
+  }
+  redirect(`${destination.pathname}${destination.search}`);
+}
+
+export async function resendVerificationAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const parsed = z
+    .object({
+      email: z.string().trim().toLowerCase().email().max(254),
+      turnstileToken: z.string().min(1),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Enter a valid email address." };
+  if (!canDeliverVerificationEmail()) {
+    return { error: "Email verification is temporarily unavailable." };
+  }
+
+  const requestHeaders = await trustedActionHeaders();
+  if (!requestHeaders) return { error: "This request could not be verified." };
+  const ip = getClientIp(requestHeaders);
+  const allowed = await rateLimit(`auth:resend:${ip}:${parsed.data.email}`, {
+    limit: 3,
+    windowSeconds: 60 * 60,
+  });
+  if (!allowed) return { error: "Too many attempts. Please try again later." };
+  if (!(await verifyTurnstile(parsed.data.turnstileToken, ip))) {
+    return { error: "Human verification expired. Please try again." };
+  }
+
+  const user = await db.user.findUnique({
+    where: { email: parsed.data.email },
+    select: { email: true, emailVerified: true, passwordHash: true },
+  });
+  const delivery =
+    user?.passwordHash && !user.emailVerified
+      ? await issueEmailVerification(user.email)
+      : null;
+
+  return {
+    success:
+      "If an unverified account exists for that address, a new link has been sent.",
+    ...(delivery?.developmentUrl
+      ? { developmentUrl: delivery.developmentUrl }
+      : {}),
+  };
 }
 
 export async function loginAction(
@@ -120,6 +193,10 @@ export async function loginAction(
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "Enter a valid email and password." };
+  }
+
+  if (!(await trustedActionHeaders())) {
+    return { error: "This request could not be verified." };
   }
 
   try {
