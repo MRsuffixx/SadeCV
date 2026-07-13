@@ -76,12 +76,14 @@ export const adminRouter = createTRPCRouter({
         where: { status: { in: ["ACTIVE", "TRIALING"] } },
       }),
       ctx.db.resume.count(),
-      ctx.db.donation.aggregate({
+      ctx.db.donation.groupBy({
+        by: ["currency"],
         where: { status: "PAID" },
         _sum: { amount: true },
         _count: { _all: true },
       }),
-      ctx.db.paymentTransaction.aggregate({
+      ctx.db.paymentTransaction.groupBy({
+        by: ["currency"],
         where: { kind: "SUBSCRIPTION", status: "SUCCEEDED" },
         _sum: { amount: true },
       }),
@@ -108,16 +110,34 @@ export const adminRouter = createTRPCRouter({
       }),
     ]);
 
+    const revenueByCurrency = new Map<string, number>();
+    for (const row of donationTotals) {
+      revenueByCurrency.set(
+        row.currency,
+        (revenueByCurrency.get(row.currency) ?? 0) + (row._sum.amount ?? 0),
+      );
+    }
+    for (const row of subscriptionRevenue) {
+      if (!row.currency) continue;
+      revenueByCurrency.set(
+        row.currency,
+        (revenueByCurrency.get(row.currency) ?? 0) + (row._sum.amount ?? 0),
+      );
+    }
+
     return {
       kpis: {
         totalUsers,
         activeSubscriptions,
         totalResumes,
-        totalRevenue:
-          (donationTotals._sum.amount ?? 0) +
-          (subscriptionRevenue._sum.amount ?? 0),
-        totalDonations: donationTotals._sum.amount ?? 0,
-        donationCount: donationTotals._count._all,
+        revenueByCurrency: Array.from(revenueByCurrency, ([currency, amount]) => ({
+          currency,
+          amount,
+        })),
+        donationCount: donationTotals.reduce(
+          (total, row) => total + row._count._all,
+          0,
+        ),
       },
       recentUsers,
       recentSubscriptions,

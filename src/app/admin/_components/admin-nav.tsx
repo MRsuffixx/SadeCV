@@ -23,7 +23,7 @@ export function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Admin navigation" className="space-y-1.5">
+    <nav aria-label="Admin navigation" className="flex gap-1.5 lg:block lg:space-y-1.5">
       {links.map(({ href, label, icon: Icon }) => {
         const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
         return (
@@ -41,7 +41,7 @@ export function AdminNav() {
           </Link>
         );
       })}
-      <div className="my-4 border-t border-white/10" />
+      <div className="hidden lg:my-4 lg:block lg:border-t lg:border-white/10" />
       <Link
         href="/dash"
         className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-bold text-[#9ed7c3] transition hover:bg-white/8"

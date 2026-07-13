@@ -97,6 +97,8 @@ async function handleIyzico(rawBody: string, signature: string) {
           provider: "IYZICO",
           type: eventType,
           payloadHash: createHash("sha256").update(rawBody).digest("hex"),
+          status: eventType.includes("fail") ? "FAILED" : "PROCESSED",
+          processedAt: new Date(),
         },
       });
 
@@ -171,6 +173,22 @@ export async function POST(request: Request) {
       if (isUniqueConstraintError(error)) {
         return NextResponse.json({ received: true, duplicate: true });
       }
+      await db.paymentEvent.upsert({
+        where: { id: `STRIPE:${event.id}` },
+        create: {
+          id: `STRIPE:${event.id}`,
+          provider: "STRIPE",
+          type: event.type,
+          status: "FAILED",
+          errorMessage: "Webhook processing failed",
+          processedAt: new Date(),
+        },
+        update: {
+          status: "FAILED",
+          errorMessage: "Webhook processing failed",
+          processedAt: new Date(),
+        },
+      });
       return NextResponse.json(
         { error: "Webhook processing failed" },
         { status: 500 },

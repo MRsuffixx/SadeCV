@@ -90,7 +90,13 @@ export async function processStripeEvent(
   event: Stripe.Event,
 ) {
   await tx.paymentEvent.create({
-    data: { id: `STRIPE:${event.id}`, provider: "STRIPE", type: event.type },
+    data: {
+      id: `STRIPE:${event.id}`,
+      provider: "STRIPE",
+      type: event.type,
+      status: event.type.includes("failed") ? "FAILED" : "PROCESSED",
+      processedAt: new Date(),
+    },
   });
 
   if (
@@ -107,6 +113,36 @@ export async function processStripeEvent(
     event.type === "checkout.session.async_payment_succeeded"
   ) {
     const session = event.data.object;
+    const kind = session.metadata?.kind?.toUpperCase() ?? "CHECKOUT";
+    const transactionId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : (session.payment_intent?.id ?? session.id);
+    await tx.paymentTransaction.upsert({
+      where: {
+        provider_providerTransactionId: {
+          provider: "STRIPE",
+          providerTransactionId: transactionId,
+        },
+      },
+      create: {
+        userId:
+          session.metadata?.userId ?? session.client_reference_id ?? undefined,
+        provider: "STRIPE",
+        kind,
+        providerTransactionId: transactionId,
+        providerSessionId: session.id,
+        amount: session.amount_total,
+        currency: session.currency?.toUpperCase(),
+        status: session.payment_status === "paid" ? "SUCCEEDED" : "PENDING",
+      },
+      update: {
+        providerSessionId: session.id,
+        amount: session.amount_total,
+        currency: session.currency?.toUpperCase(),
+        status: session.payment_status === "paid" ? "SUCCEEDED" : "PENDING",
+      },
+    });
     if (session.metadata?.kind === "donation") {
       const donationId = session.metadata.donationId;
       if (donationId && session.payment_status === "paid") {

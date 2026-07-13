@@ -39,14 +39,42 @@ export async function POST(request: Request) {
     );
     const data = result.data ?? result;
     const paid = data.paymentStatus === "SUCCESS";
-    await db.donation.updateMany({
-      where: { id: query.data.reference },
-      data: {
-        status: paid ? "PAID" : "FAILED",
-        providerSessionId: token.data,
-        providerPaymentId: data.paymentId,
-        ...(paid ? { paidAt: new Date() } : {}),
-      },
+    await db.$transaction(async (tx) => {
+      const donation = await tx.donation.findUnique({
+        where: { id: query.data.reference },
+      });
+      if (!donation) return;
+      await tx.donation.update({
+        where: { id: donation.id },
+        data: {
+          status: paid ? "PAID" : "FAILED",
+          providerSessionId: token.data,
+          providerPaymentId: data.paymentId,
+          ...(paid ? { paidAt: new Date() } : {}),
+        },
+      });
+      await tx.paymentTransaction.upsert({
+        where: {
+          provider_providerTransactionId: {
+            provider: "IYZICO",
+            providerTransactionId: data.paymentId ?? token.data,
+          },
+        },
+        create: {
+          userId: donation.userId,
+          provider: "IYZICO",
+          kind: "DONATION",
+          providerTransactionId: data.paymentId ?? token.data,
+          providerSessionId: token.data,
+          amount: donation.amount,
+          currency: donation.currency,
+          status: paid ? "SUCCEEDED" : "FAILED",
+        },
+        update: {
+          status: paid ? "SUCCEEDED" : "FAILED",
+          providerSessionId: token.data,
+        },
+      });
     });
     return NextResponse.redirect(
       `${origin}/support/${paid ? "success" : "?checkout=failed"}`,
@@ -88,6 +116,23 @@ export async function POST(request: Request) {
       },
     });
     await recomputeUserPlan(tx, query.data.reference);
+    await tx.paymentTransaction.upsert({
+      where: {
+        provider_providerTransactionId: {
+          provider: "IYZICO",
+          providerTransactionId: subscriptionReferenceCode,
+        },
+      },
+      create: {
+        userId: query.data.reference,
+        provider: "IYZICO",
+        kind: "SUBSCRIPTION",
+        providerTransactionId: subscriptionReferenceCode,
+        providerSessionId: token.data,
+        status: "SUCCEEDED",
+      },
+      update: { status: "SUCCEEDED", providerSessionId: token.data },
+    });
   });
   return NextResponse.redirect(
     `${origin}/pricing/success?provider=iyzico`,

@@ -18,6 +18,17 @@ const dateTime = new Intl.DateTimeFormat("en-US", {
 
 export default async function AdminOverviewPage() {
   const data = await api.admin.overview();
+  const revenue = data.kpis.revenueByCurrency.length
+    ? data.kpis.revenueByCurrency
+        .map(({ amount, currency }) =>
+          new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency,
+            maximumFractionDigits: 0,
+          }).format(amount / 100),
+        )
+        .join(" · ")
+    : "—";
   const cards = [
     { label: "Total users", value: number.format(data.kpis.totalUsers), icon: Users },
     {
@@ -28,8 +39,8 @@ export default async function AdminOverviewPage() {
     { label: "Resumes created", value: number.format(data.kpis.totalResumes), icon: FileText },
     {
       label: "Revenue + donations",
-      value: number.format(data.kpis.totalRevenue / 100),
-      suffix: " base units",
+      value: revenue,
+      suffix: `${data.kpis.donationCount} donations`,
       icon: Banknote,
     },
   ];
