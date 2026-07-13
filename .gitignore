@@ -46,6 +46,7 @@ next-env.d.ts
 /.playwright
 /test-results
 junit.xml
+/tmp
 
 # Database (Prisma & SQLite)
 # ------------------------------------------

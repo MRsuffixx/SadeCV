@@ -44,7 +44,15 @@ export const pdfStyles = StyleSheet.create({
   skillMeta: { fontSize: 5.8, color: "#7c8580" },
   skillTrack: { height: 2.5, marginTop: 2.5, borderRadius: 2, backgroundColor: "#dfe5e1" },
   skillBar: { height: 2.5, borderRadius: 2 },
-  footer: { position: "absolute", right: 32, bottom: 20, fontSize: 5.6, color: "#9aa19d" },
+  footer: {
+    position: "absolute",
+    right: 32,
+    bottom: 20,
+    width: 32,
+    fontSize: 5.6,
+    color: "#9aa19d",
+    textAlign: "right",
+  },
 });
 
 export function getPdfTheme(presentation: ResumePresentation) {
@@ -218,7 +226,12 @@ function PdfItem({
   const bodyColor = inverse ? "#ffffffbf" : "#555f5a";
   return (
     <View style={pdfStyles.item} wrap={kind === "TEXT"}>
-      <View style={pdfStyles.itemHead}>
+      <View
+        style={[
+          pdfStyles.itemHead,
+          inverse ? { flexDirection: "column", gap: 1 } : {},
+        ]}
+      >
         <View style={{ flexGrow: 1 }}>
           {item.title ? (
             <Text
@@ -254,7 +267,9 @@ function PdfItem({
           <Text
             style={[
               pdfStyles.itemMeta,
-              inverse ? { color: "#ffffff8f" } : {},
+              inverse
+                ? { color: "#ffffff8f", maxWidth: "100%", textAlign: "left" }
+                : {},
             ]}
           >
             {item.meta}
