@@ -109,11 +109,9 @@ export const authConfig = {
       if (user) {
         token.id = user.id;
         token.tier = "tier" in user ? String(user.tier) : "FREE";
-        token.role =
-          "role" in user && user.role === "ADMIN" ? "ADMIN" : "USER";
+        token.role = "role" in user && user.role === "ADMIN" ? "ADMIN" : "USER";
         token.banned = "bannedAt" in user && Boolean(user.bannedAt);
-        claims.locale =
-          "locale" in user && user.locale === "tr" ? "tr" : "en";
+        claims.locale = "locale" in user && user.locale === "tr" ? "tr" : "en";
         claims.authRefreshedAt = Date.now();
       } else if (
         typeof token.id === "string" &&
@@ -142,9 +140,7 @@ export const authConfig = {
         role: token.role === "ADMIN" ? "ADMIN" : "USER",
         banned: Boolean(token.banned),
         locale:
-          (token as typeof token & SadeJwtClaims).locale === "tr"
-            ? "tr"
-            : "en",
+          (token as typeof token & SadeJwtClaims).locale === "tr" ? "tr" : "en",
       },
     }),
   },

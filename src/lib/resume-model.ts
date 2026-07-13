@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  isAllowedResumeImageUrl,
-  normalizeHttpUrl,
-} from "~/lib/remote-assets";
+import { isAllowedResumeImageUrl, normalizeHttpUrl } from "~/lib/remote-assets";
 
 export {
   resumeTemplateIdSchema as resumeTemplateSchema,

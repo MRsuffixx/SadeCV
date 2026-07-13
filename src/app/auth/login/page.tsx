@@ -27,9 +27,9 @@ export default async function LoginPage({
         ? "That verification link is invalid or expired. Request a new one below."
         : params.registered === "1"
           ? "Check your inbox and verify your email before signing in."
-      : params.error
-        ? "Human verification was not completed. Please try again."
-        : undefined;
+          : params.error
+            ? "Human verification was not completed. Please try again."
+            : undefined;
 
   return (
     <AuthShell

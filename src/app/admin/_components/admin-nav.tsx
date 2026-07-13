@@ -23,9 +23,13 @@ export function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Admin navigation" className="flex gap-1.5 lg:block lg:space-y-1.5">
+    <nav
+      aria-label="Admin navigation"
+      className="flex gap-1.5 lg:block lg:space-y-1.5"
+    >
       {links.map(({ href, label, icon: Icon }) => {
-        const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
+        const active =
+          href === "/admin" ? pathname === href : pathname.startsWith(href);
         return (
           <Link
             key={href}

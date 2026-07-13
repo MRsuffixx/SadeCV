@@ -56,8 +56,8 @@ export function ResumeEditor({ resume }: { resume: ResumeRecord }) {
           </h1>
           <p className="mt-3 text-sm leading-6 text-[#66706b]">
             Its stored content could not be validated, so editing has been
-            locked to prevent accidental data loss. Contact an administrator
-            to restore a previous version.
+            locked to prevent accidental data loss. Contact an administrator to
+            restore a previous version.
           </p>
           <Link href="/dash" className="button-primary mt-6">
             <ArrowLeft size={16} /> Back to dashboard
@@ -102,20 +102,23 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
       return;
     }
     setSaveError("");
-    mutation.mutate({
-      id: resumeId,
-      title: state.title,
-      template: state.selectedTemplateId,
-      theme: state.theme,
-      isPublic: premiumLocked ? false : state.isPublic,
-      content: parsedContent.data,
-      status:
-        !premiumLocked && isResumeReady(parsedContent.data)
-          ? "READY"
-          : "DRAFT",
-    }, {
-      onSuccess: () => markSaved(parsedContent.data),
-    });
+    mutation.mutate(
+      {
+        id: resumeId,
+        title: state.title,
+        template: state.selectedTemplateId,
+        theme: state.theme,
+        isPublic: premiumLocked ? false : state.isPublic,
+        content: parsedContent.data,
+        status:
+          !premiumLocked && isResumeReady(parsedContent.data)
+            ? "READY"
+            : "DRAFT",
+      },
+      {
+        onSuccess: () => markSaved(parsedContent.data),
+      },
+    );
   };
 
   const exportPdf = async () => {
@@ -138,9 +141,9 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
         }),
       });
       if (!response.ok) {
-        const result = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const result = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         if (response.status === 402) {
           setExportError("Upgrade to Premium to export this template.");
           return;
@@ -221,9 +224,7 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
               <button
                 type="button"
                 onClick={exportPdf}
-                disabled={
-                  exporting || systemStatus?.pdfGeneration === false
-                }
+                disabled={exporting || systemStatus?.pdfGeneration === false}
                 title={
                   systemStatus?.pdfGeneration === false
                     ? "PDF generation is temporarily disabled"

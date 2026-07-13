@@ -28,19 +28,19 @@ import { getClientIp, verifyTurnstile } from "~/server/security/turnstile";
 const providerSchema = z.enum(["STRIPE", "IYZICO"]);
 const billingProfileSchema = z
   .object({
-  name: z.string().trim().min(1).max(80),
-  surname: z.string().trim().min(1).max(80),
+    name: z.string().trim().min(1).max(80),
+    surname: z.string().trim().min(1).max(80),
     identityNumber: z.string().trim().min(5).max(50),
-  gsmNumber: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9]{10,15}$/),
-  email: z.string().trim().email().max(254),
-  address: z.string().trim().min(5).max(240),
-  city: z.string().trim().min(2).max(80),
-  district: z.string().trim().min(2).max(80),
+    gsmNumber: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9]{10,15}$/),
+    email: z.string().trim().email().max(254),
+    address: z.string().trim().min(5).max(240),
+    city: z.string().trim().min(2).max(80),
+    district: z.string().trim().min(2).max(80),
     country: z.string().trim().min(2).max(80).default("Türkiye"),
-  zipCode: z.string().trim().min(3).max(12),
+    zipCode: z.string().trim().min(3).max(12),
   })
   .strict()
   .superRefine((profile, ctx) => {
@@ -261,7 +261,8 @@ export const billingRouter = createTRPCRouter({
         console.error("Donation checkout initialization failed", {
           donationId: donation.id,
           provider: input.provider,
-          error: error instanceof Error ? error.message : "Unknown provider error",
+          error:
+            error instanceof Error ? error.message : "Unknown provider error",
         });
         // Keep the PENDING row. Provider session creation can succeed even when
         // the response is lost; a later signed webhook can still reconcile it.

@@ -1,10 +1,4 @@
-const TURKEY_NAMES = new Set([
-  "tr",
-  "turkey",
-  "türkiye",
-  "turkiye",
-  "türkey",
-]);
+const TURKEY_NAMES = new Set(["tr", "turkey", "türkiye", "turkiye", "türkey"]);
 
 export function isTurkey(value: string) {
   return TURKEY_NAMES.has(value.trim().toLocaleLowerCase("tr-TR"));
@@ -20,10 +14,7 @@ export function isValidTurkishIdentityNumber(value: string) {
     (digits[6] ?? 0) +
     (digits[8] ?? 0);
   const even =
-    (digits[1] ?? 0) +
-    (digits[3] ?? 0) +
-    (digits[5] ?? 0) +
-    (digits[7] ?? 0);
+    (digits[1] ?? 0) + (digits[3] ?? 0) + (digits[5] ?? 0) + (digits[7] ?? 0);
 
   return (
     (odd * 7 - even) % 10 === digits[9] &&
@@ -32,7 +23,10 @@ export function isValidTurkishIdentityNumber(value: string) {
   );
 }
 
-export function isValidBillingIdentity(identityNumber: string, country: string) {
+export function isValidBillingIdentity(
+  identityNumber: string,
+  country: string,
+) {
   return isTurkey(country)
     ? isValidTurkishIdentityNumber(identityNumber)
     : /^[A-Za-z0-9][A-Za-z0-9 .'-]{4,49}$/.test(identityNumber);

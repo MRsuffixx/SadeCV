@@ -26,14 +26,32 @@ export const pdfStyles = StyleSheet.create({
   item: { marginBottom: 7 },
   itemHead: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
   itemTitle: { flexGrow: 1, fontSize: 8.5, fontFamily: "Helvetica-Bold" },
-  itemMeta: { maxWidth: "42%", fontSize: 6.3, lineHeight: 1.35, color: "#78817d", textAlign: "right" },
+  itemMeta: {
+    maxWidth: "42%",
+    fontSize: 6.3,
+    lineHeight: 1.35,
+    color: "#78817d",
+    textAlign: "right",
+  },
   subtitle: { marginTop: 1.5, fontSize: 7, fontFamily: "Helvetica-Bold" },
   body: { marginTop: 2.5, fontSize: 7.3, lineHeight: 1.48, color: "#555f5a" },
   bulletRow: { flexDirection: "row", marginTop: 2.2, paddingRight: 3 },
   bullet: { width: 8, fontSize: 7, color: "#606a65" },
-  bulletText: { flexGrow: 1, fontSize: 7.3, lineHeight: 1.45, color: "#555f5a" },
+  bulletText: {
+    flexGrow: 1,
+    fontSize: 7.3,
+    lineHeight: 1.45,
+    color: "#555f5a",
+  },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 3, marginTop: 3 },
-  tag: { borderRadius: 8, backgroundColor: "#edf1ee", paddingHorizontal: 5, paddingVertical: 2, fontSize: 5.8, color: "#5d6762" },
+  tag: {
+    borderRadius: 8,
+    backgroundColor: "#edf1ee",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    fontSize: 5.8,
+    color: "#5d6762",
+  },
   contactWrap: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   contactItem: { flexDirection: "row", alignItems: "center", gap: 3 },
   contactMarker: { width: 3, height: 3, borderRadius: 3 },
@@ -42,7 +60,12 @@ export const pdfStyles = StyleSheet.create({
   skillHead: { flexDirection: "row", justifyContent: "space-between", gap: 6 },
   skillName: { fontSize: 7, fontFamily: "Helvetica-Bold" },
   skillMeta: { fontSize: 5.8, color: "#7c8580" },
-  skillTrack: { height: 2.5, marginTop: 2.5, borderRadius: 2, backgroundColor: "#dfe5e1" },
+  skillTrack: {
+    height: 2.5,
+    marginTop: 2.5,
+    borderRadius: 2,
+    backgroundColor: "#dfe5e1",
+  },
   skillBar: { height: 2.5, borderRadius: 2 },
   footer: {
     position: "absolute",
@@ -188,7 +211,12 @@ export function PdfSectionItems({
     return (
       <View>
         {section.items.map((item) => (
-          <PdfSkill key={item.id} item={item} presentation={presentation} inverse={inverse} />
+          <PdfSkill
+            key={item.id}
+            item={item}
+            presentation={presentation}
+            inverse={inverse}
+          />
         ))}
       </View>
     );
@@ -252,9 +280,7 @@ function PdfItem({
               style={[
                 pdfStyles.subtitle,
                 {
-                  color: inverse
-                    ? "#ffffffb8"
-                    : presentation.theme.accentColor,
+                  color: inverse ? "#ffffffb8" : presentation.theme.accentColor,
                   fontFamily: theme.heading,
                 },
               ]}
@@ -283,7 +309,11 @@ function PdfItem({
             <Text
               style={[
                 pdfStyles.bulletText,
-                { color: bodyColor, fontFamily: theme.body, lineHeight: theme.lineHeight },
+                {
+                  color: bodyColor,
+                  fontFamily: theme.body,
+                  lineHeight: theme.lineHeight,
+                },
               ]}
             >
               {paragraph}
@@ -294,7 +324,11 @@ function PdfItem({
             key={`${item.id}-${index}`}
             style={[
               pdfStyles.body,
-              { color: bodyColor, fontFamily: theme.body, lineHeight: theme.lineHeight },
+              {
+                color: bodyColor,
+                fontFamily: theme.body,
+                lineHeight: theme.lineHeight,
+              },
             ]}
           >
             {paragraph}
@@ -321,7 +355,11 @@ function PdfItem({
       {item.url ? (
         <Link
           src={item.url}
-          style={{ marginTop: 2, fontSize: 5.8, color: inverse ? "#ffffffaa" : presentation.theme.accentColor }}
+          style={{
+            marginTop: 2,
+            fontSize: 5.8,
+            color: inverse ? "#ffffffaa" : presentation.theme.accentColor,
+          }}
         >
           {item.url}
         </Link>
@@ -343,12 +381,43 @@ function PdfSkill({
   return (
     <View style={pdfStyles.skill} wrap={false}>
       <View style={pdfStyles.skillHead}>
-        <Text style={[pdfStyles.skillName, { color: inverse ? "#ffffff" : "#34413b", fontFamily: theme.heading }]}>{item.title}</Text>
-        {item.meta ? <Text style={[pdfStyles.skillMeta, inverse ? { color: "#ffffff8f" } : {}]}>{item.meta}</Text> : null}
+        <Text
+          style={[
+            pdfStyles.skillName,
+            {
+              color: inverse ? "#ffffff" : "#34413b",
+              fontFamily: theme.heading,
+            },
+          ]}
+        >
+          {item.title}
+        </Text>
+        {item.meta ? (
+          <Text
+            style={[pdfStyles.skillMeta, inverse ? { color: "#ffffff8f" } : {}]}
+          >
+            {item.meta}
+          </Text>
+        ) : null}
       </View>
       {item.progress ? (
-        <View style={[pdfStyles.skillTrack, inverse ? { backgroundColor: "#ffffff26" } : {}]}>
-          <View style={[pdfStyles.skillBar, { width: `${item.progress}%`, backgroundColor: inverse ? "#ffffffb8" : presentation.theme.accentColor }]} />
+        <View
+          style={[
+            pdfStyles.skillTrack,
+            inverse ? { backgroundColor: "#ffffff26" } : {},
+          ]}
+        >
+          <View
+            style={[
+              pdfStyles.skillBar,
+              {
+                width: `${item.progress}%`,
+                backgroundColor: inverse
+                  ? "#ffffffb8"
+                  : presentation.theme.accentColor,
+              },
+            ]}
+          />
         </View>
       ) : null}
     </View>

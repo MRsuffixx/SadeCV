@@ -7,7 +7,11 @@ import { AdminNav } from "~/app/admin/_components/admin-nav";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 
-export default async function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/auth/login?callbackUrl=/admin");
   const admin = await db.user.findUnique({
@@ -29,8 +33,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <ShieldCheck size={19} />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-xs font-extrabold">{admin.name ?? "Administrator"}</p>
-            <p className="mt-0.5 truncate text-[10px] text-white/50">{admin.email}</p>
+            <p className="truncate text-xs font-extrabold">
+              {admin.name ?? "Administrator"}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] text-white/50">
+              {admin.email}
+            </p>
           </div>
         </div>
         <div className="mt-7">

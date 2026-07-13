@@ -24,12 +24,12 @@ export function getUploadThingConfiguration() {
   const payload = token ? parseToken(token) : null;
   const configured = Boolean(
     token &&
-      payload &&
-      typeof payload.apiKey === "string" &&
-      payload.apiKey.startsWith("sk_") &&
-      typeof payload.appId === "string" &&
-      payload.appId.length > 0 &&
-      (Array.isArray(payload.regions) || typeof payload.regions === "string"),
+    payload &&
+    typeof payload.apiKey === "string" &&
+    payload.apiKey.startsWith("sk_") &&
+    typeof payload.appId === "string" &&
+    payload.appId.length > 0 &&
+    (Array.isArray(payload.regions) || typeof payload.regions === "string"),
   );
 
   return {

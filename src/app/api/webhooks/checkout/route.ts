@@ -124,7 +124,7 @@ async function handleIyzico(rawBody: string, signature: string) {
           where: {
             provider_providerSubscriptionId: {
               provider: "IYZICO",
-              providerSubscriptionId,
+              providerSubscriptionId: providerSubscriptionId!,
             },
           },
         });
@@ -137,7 +137,8 @@ async function handleIyzico(rawBody: string, signature: string) {
         await tx.subscription.update({
           where: { id: existing.id },
           data: {
-            status: authoritativeSubscription!.subscriptionStatus!.toUpperCase(),
+            status:
+              authoritativeSubscription!.subscriptionStatus!.toUpperCase(),
             currentPeriodEnd: parseIyzicoEpochDate(
               authoritativeSubscription!.endDate,
             ),
@@ -147,8 +148,7 @@ async function handleIyzico(rawBody: string, signature: string) {
           where: {
             provider_providerTransactionId: {
               provider: "IYZICO",
-              providerTransactionId:
-                payload.orderReferenceCode ?? eventId,
+              providerTransactionId: payload.orderReferenceCode ?? eventId,
             },
           },
           create: {

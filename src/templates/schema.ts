@@ -22,19 +22,17 @@ export const fontPairingSchema = z.enum([
   "EDITORIAL_SERIF",
 ]);
 
-export const resumeSpacingSchema = z.enum([
-  "COMPACT",
-  "BALANCED",
-  "SPACIOUS",
-]);
+export const resumeSpacingSchema = z.enum(["COMPACT", "BALANCED", "SPACIOUS"]);
 
-export const resumeThemeSchema = z.object({
-  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-  fontPairing: fontPairingSchema,
-  spacing: resumeSpacingSchema,
-  showIcons: z.boolean(),
-  showProfilePhoto: z.boolean(),
-}).strict();
+export const resumeThemeSchema = z
+  .object({
+    accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+    fontPairing: fontPairingSchema,
+    spacing: resumeSpacingSchema,
+    showIcons: z.boolean(),
+    showProfilePhoto: z.boolean(),
+  })
+  .strict();
 
 export const resumeTemplateDefinitionSchema = z.object({
   id: resumeTemplateIdSchema,

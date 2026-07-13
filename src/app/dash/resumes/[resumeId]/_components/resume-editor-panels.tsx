@@ -22,10 +22,7 @@ import type {
   ResumeArraySection,
 } from "~/lib/resume-model";
 import { TEMPLATE_DEFINITIONS } from "~/templates/registry";
-import {
-  FONT_PAIRINGS,
-  RESUME_PALETTES,
-} from "~/templates/schema";
+import { FONT_PAIRINGS, RESUME_PALETTES } from "~/templates/schema";
 import { useUploadThing } from "~/utils/uploadthing";
 
 export function ResumeEditorPanels({
@@ -122,7 +119,9 @@ function PersonalInformationPanel({
               try {
                 await startUpload([file], { resumeId });
               } catch {
-                setUploadError("The image could not be uploaded. Please try again.");
+                setUploadError(
+                  "The image could not be uploaded. Please try again.",
+                );
               }
             }
             event.target.value = "";
@@ -1341,7 +1340,7 @@ function StylePanel({ isPremium }: { isPremium: boolean }) {
               <span className="block pr-12 text-[11px] font-extrabold">
                 {definition.name}
               </span>
-              <span className="mt-1 block text-[8px] font-black tracking-wider opacity-60 uppercase">
+              <span className="mt-1 block text-[8px] font-black tracking-wider uppercase opacity-60">
                 {definition.category}
               </span>
               <span className="mt-2 block text-[9px] leading-4 font-medium opacity-70">
@@ -1417,9 +1416,7 @@ function StylePanel({ isPremium }: { isPremium: boolean }) {
                 </span>
               </span>
               <span
-                className={
-                  pairing.id === "INTER" ? "font-sans" : "font-serif"
-                }
+                className={pairing.id === "INTER" ? "font-sans" : "font-serif"}
               >
                 Aa
               </span>

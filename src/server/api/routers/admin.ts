@@ -3,16 +3,10 @@ import { z } from "zod";
 
 import type { Prisma, PrismaClient } from "../../../../generated/prisma";
 import { includesNormalizedSearch } from "~/lib/search";
-import {
-  createTRPCRouter,
-  protectedAdminProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedAdminProcedure } from "~/server/api/trpc";
 import { getCalendarMonth } from "~/server/billing/entitlements";
 import { recomputeUserPlan } from "~/server/payments/sync";
-import {
-  FEATURE_FLAGS,
-  listFeatureFlags,
-} from "~/server/system/feature-flags";
+import { FEATURE_FLAGS, listFeatureFlags } from "~/server/system/feature-flags";
 
 const roleSchema = z.enum(["USER", "ADMIN"]);
 const tierSchema = z.enum(["FREE", "PREMIUM"]);
@@ -83,7 +77,8 @@ function auditData(input: {
 type AuditActor = { id: string; email: string; name: string | null };
 
 function auditError(error: unknown) {
-  if (error instanceof TRPCError) return `${error.code}: ${error.message}`.slice(0, 500);
+  if (error instanceof TRPCError)
+    return `${error.code}: ${error.message}`.slice(0, 500);
   if (error instanceof Error) return error.message.slice(0, 500);
   return "Unknown administrator mutation failure";
 }
@@ -220,10 +215,13 @@ export const adminRouter = createTRPCRouter({
         totalUsers,
         activeSubscriptions,
         totalResumes,
-        revenueByCurrency: Array.from(revenueByCurrency, ([currency, amount]) => ({
-          currency,
-          amount,
-        })),
+        revenueByCurrency: Array.from(
+          revenueByCurrency,
+          ([currency, amount]) => ({
+            currency,
+            amount,
+          }),
+        ),
         donationCount: donationTotals.reduce(
           (total, row) => total + row._count._all,
           0,
@@ -253,10 +251,7 @@ export const adminRouter = createTRPCRouter({
             })
           )
             .filter((user) =>
-              includesNormalizedSearch(
-                [user.name, user.email],
-                input.search,
-              ),
+              includesNormalizedSearch([user.name, user.email], input.search),
             )
             .map((user) => user.id)
         : null;
@@ -336,7 +331,10 @@ export const adminRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       if (id === ctx.currentUser.id && data.role === "USER") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "SELF_DEMOTION_BLOCKED" });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "SELF_DEMOTION_BLOCKED",
+        });
       }
       return auditedMutation(
         ctx.db,
@@ -460,10 +458,16 @@ export const adminRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.userId === ctx.currentUser.id && input.banned) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "SELF_BAN_BLOCKED" });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "SELF_BAN_BLOCKED",
+        });
       }
       if (input.banned && !input.reason) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "BAN_REASON_REQUIRED" });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "BAN_REASON_REQUIRED",
+        });
       }
       return auditedMutation(
         ctx.db,
@@ -494,10 +498,18 @@ export const adminRouter = createTRPCRouter({
     }),
 
   deleteUser: protectedAdminProcedure
-    .input(z.object({ userId: z.string().cuid(), confirmationEmail: z.string().email() }))
+    .input(
+      z.object({
+        userId: z.string().cuid(),
+        confirmationEmail: z.string().email(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       if (input.userId === ctx.currentUser.id) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "SELF_DELETE_BLOCKED" });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "SELF_DELETE_BLOCKED",
+        });
       }
       const target = await ctx.db.user.findUnique({
         where: { id: input.userId },
@@ -656,7 +668,10 @@ export const adminRouter = createTRPCRouter({
 
   deleteResume: protectedAdminProcedure
     .input(
-      z.object({ resumeId: z.string().cuid(), confirmationTitle: z.string().trim() }),
+      z.object({
+        resumeId: z.string().cuid(),
+        confirmationTitle: z.string().trim(),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const resume = await ctx.db.resume.findUnique({
@@ -686,7 +701,9 @@ export const adminRouter = createTRPCRouter({
       );
     }),
 
-  settings: protectedAdminProcedure.query(({ ctx }) => listFeatureFlags(ctx.db)),
+  settings: protectedAdminProcedure.query(({ ctx }) =>
+    listFeatureFlags(ctx.db),
+  ),
 
   updateFeatureFlag: protectedAdminProcedure
     .input(z.object({ key: featureFlagKeySchema, enabled: z.boolean() }))

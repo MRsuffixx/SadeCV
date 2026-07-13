@@ -12,10 +12,7 @@ import { hasTrustedOrigin } from "~/server/security/origin";
 import { isFeatureEnabled } from "~/server/system/feature-flags";
 import { ResumePdfDocument } from "~/templates/pdf/resume-pdf-document";
 import { isPremiumTemplate } from "~/templates/registry";
-import {
-  resumeTemplateIdSchema,
-  resumeThemeSchema,
-} from "~/templates/schema";
+import { resumeTemplateIdSchema, resumeThemeSchema } from "~/templates/schema";
 
 export const runtime = "nodejs";
 
@@ -95,10 +92,7 @@ export async function POST(
   ) {
     return Response.json({ error: "MAINTENANCE_MODE" }, { status: 503 });
   }
-  if (
-    isPremiumTemplate(input.data.template) &&
-    !hasPremiumAccess(user)
-  ) {
+  if (isPremiumTemplate(input.data.template) && !hasPremiumAccess(user)) {
     return Response.json(
       { error: "PREMIUM_TEMPLATE_REQUIRED" },
       { status: 402 },

@@ -107,23 +107,73 @@ export function buildResumePresentation(
 ): ResumePresentation {
   const personal = content.personalInformation;
   const placeholders = options.placeholders ?? false;
-  const name = getResumeDisplayName(content) || (placeholders ? "Your name" : "");
+  const name =
+    getResumeDisplayName(content) || (placeholders ? "Your name" : "");
   const professionalTitle =
     personal.professionalTitle ||
     (placeholders ? "Your professional title" : "");
   const contact: PresentationContact[] = [
-    { id: "email", label: "Email", value: personal.email, href: personal.email ? `mailto:${personal.email}` : undefined },
-    { id: "phone", label: "Phone", value: personal.primaryPhone, href: personal.primaryPhone ? `tel:${personal.primaryPhone}` : undefined },
-    { id: "phone-secondary", label: "Phone", value: personal.secondaryPhone, href: personal.secondaryPhone ? `tel:${personal.secondaryPhone}` : undefined },
-    { id: "location", label: "Location", value: compact([personal.cityDistrict, personal.country]).join(", ") },
-    { id: "address", label: "Address", value: compact([personal.fullAddress, personal.zipCode]).join(", ") },
+    {
+      id: "email",
+      label: "Email",
+      value: personal.email,
+      href: personal.email ? `mailto:${personal.email}` : undefined,
+    },
+    {
+      id: "phone",
+      label: "Phone",
+      value: personal.primaryPhone,
+      href: personal.primaryPhone ? `tel:${personal.primaryPhone}` : undefined,
+    },
+    {
+      id: "phone-secondary",
+      label: "Phone",
+      value: personal.secondaryPhone,
+      href: personal.secondaryPhone
+        ? `tel:${personal.secondaryPhone}`
+        : undefined,
+    },
+    {
+      id: "location",
+      label: "Location",
+      value: compact([personal.cityDistrict, personal.country]).join(", "),
+    },
+    {
+      id: "address",
+      label: "Address",
+      value: compact([personal.fullAddress, personal.zipCode]).join(", "),
+    },
   ].filter((item) => Boolean(item.value));
   const links: PresentationContact[] = [
-    { id: "linkedin", label: "LinkedIn", value: personal.socials.linkedin, href: personal.socials.linkedin },
-    { id: "github", label: "GitHub", value: personal.socials.github, href: personal.socials.github },
-    { id: "portfolio", label: "Portfolio", value: personal.socials.portfolio, href: personal.socials.portfolio },
-    { id: "design", label: "Design", value: personal.socials.designPortfolio, href: personal.socials.designPortfolio },
-    { id: "communication", label: "Contact", value: personal.socials.communication },
+    {
+      id: "linkedin",
+      label: "LinkedIn",
+      value: personal.socials.linkedin,
+      href: personal.socials.linkedin,
+    },
+    {
+      id: "github",
+      label: "GitHub",
+      value: personal.socials.github,
+      href: personal.socials.github,
+    },
+    {
+      id: "portfolio",
+      label: "Portfolio",
+      value: personal.socials.portfolio,
+      href: personal.socials.portfolio,
+    },
+    {
+      id: "design",
+      label: "Design",
+      value: personal.socials.designPortfolio,
+      href: personal.socials.designPortfolio,
+    },
+    {
+      id: "communication",
+      label: "Contact",
+      value: personal.socials.communication,
+    },
   ].filter((item) => Boolean(item.value));
 
   const sections: Record<string, PresentationSection> = {};
@@ -412,14 +462,19 @@ export function buildResumePresentation(
 
   content.customSections.forEach((item) =>
     add(
-      section(`custom-${item.id}`, item.title || "Additional information", "TEXT", [
-        {
-          id: item.id,
-          title: "",
-          body: lines(item.content),
-          tags: [],
-        },
-      ]),
+      section(
+        `custom-${item.id}`,
+        item.title || "Additional information",
+        "TEXT",
+        [
+          {
+            id: item.id,
+            title: "",
+            body: lines(item.content),
+            tags: [],
+          },
+        ],
+      ),
     ),
   );
 

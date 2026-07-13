@@ -157,8 +157,7 @@ export function ResumeGrid({
                     {resume.title}
                   </h3>
                   <p className="mt-1 text-xs font-medium text-[#7d8581]">
-                    Edited{" "}
-                    {resumeDate.format(new Date(resume.updatedAt))}
+                    Edited {resumeDate.format(new Date(resume.updatedAt))}
                   </p>
                 </div>
                 <button
@@ -258,17 +257,21 @@ export function ResumeGrid({
                     className={`relative min-h-16 rounded-xl border px-3 py-3 text-left text-xs font-extrabold transition ${template === definition.id ? "border-[#277b67] bg-[#e5f1ec] text-[#195947]" : "border-black/10 bg-white text-[#707874] hover:border-black/20"}`}
                   >
                     <span className="block pr-6">{definition.name}</span>
-                    <span className="mt-1 block text-[8px] font-black tracking-wider opacity-55 uppercase">
+                    <span className="mt-1 block text-[8px] font-black tracking-wider uppercase opacity-55">
                       {definition.category}
                     </span>
                     {definition.isPremium ? (
-                      <Crown size={11} className="absolute top-2 right-2 text-[#d18a35]" />
+                      <Crown
+                        size={11}
+                        className="absolute top-2 right-2 text-[#d18a35]"
+                      />
                     ) : null}
                   </button>
                 ))}
               </div>
-              {getSelectedTemplatePremium(template) && !quota.data?.isPremium ? (
-                <p className="mt-2 rounded-xl bg-[#fff4da] px-3 py-2 text-[10px] font-bold leading-4 text-[#815b20]">
+              {getSelectedTemplatePremium(template) &&
+              !quota.data?.isPremium ? (
+                <p className="mt-2 rounded-xl bg-[#fff4da] px-3 py-2 text-[10px] leading-4 font-bold text-[#815b20]">
                   Premium preview: you can design and save a draft, then upgrade
                   to publish or export it.
                 </p>

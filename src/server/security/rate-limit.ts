@@ -6,8 +6,7 @@ import { env } from "~/env";
 import { db } from "~/server/db";
 
 let valkeyClientPromise:
-  | Promise<Awaited<ReturnType<typeof createValkeyClient>>>
-  | undefined;
+  Promise<Awaited<ReturnType<typeof createValkeyClient>>> | undefined;
 
 function storageKey(key: string) {
   return createHash("sha256")
@@ -96,11 +95,7 @@ export async function rateLimit(
   if (distributed !== null) return distributed;
 
   try {
-    return await checkDatabase(
-      keyHash,
-      options.limit,
-      options.windowSeconds,
-    );
+    return await checkDatabase(keyHash, options.limit, options.windowSeconds);
   } catch (error) {
     console.error("Rate limiter storage failed", {
       error: error instanceof Error ? error.message : "Unknown storage error",

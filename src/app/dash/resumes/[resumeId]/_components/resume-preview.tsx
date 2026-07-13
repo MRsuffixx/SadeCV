@@ -64,7 +64,7 @@ function PremiumWatermark() {
       {Array.from({ length: 8 }, (_, index) => (
         <span
           key={index}
-          className="-rotate-[28deg] whitespace-nowrap text-center text-[clamp(0.65rem,1.8vw,1.25rem)] font-black tracking-[0.22em] text-[#7f5f25]/16 uppercase"
+          className="-rotate-[28deg] text-center text-[clamp(0.65rem,1.8vw,1.25rem)] font-black tracking-[0.22em] whitespace-nowrap text-[#7f5f25]/16 uppercase"
         >
           SadeCV Premium
         </span>

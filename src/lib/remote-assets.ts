@@ -10,9 +10,7 @@ export function normalizeHttpUrl(value: string) {
 
   try {
     const parsed = new URL(
-      /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed)
-        ? trimmed
-        : `https://${trimmed}`,
+      /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
     );
     if (
       !["http:", "https:"].includes(parsed.protocol) ||

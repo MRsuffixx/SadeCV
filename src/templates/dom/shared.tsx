@@ -27,8 +27,10 @@ export function fontClasses(presentation: ResumePresentation) {
 export function spacingClasses(presentation: ResumePresentation) {
   return {
     COMPACT: "[--cv-section-gap:0.8rem] [--cv-item-gap:0.48rem] leading-[1.35]",
-    BALANCED: "[--cv-section-gap:1.15rem] [--cv-item-gap:0.72rem] leading-[1.5]",
-    SPACIOUS: "[--cv-section-gap:1.55rem] [--cv-item-gap:0.95rem] leading-[1.65]",
+    BALANCED:
+      "[--cv-section-gap:1.15rem] [--cv-item-gap:0.72rem] leading-[1.5]",
+    SPACIOUS:
+      "[--cv-section-gap:1.55rem] [--cv-item-gap:0.95rem] leading-[1.65]",
   }[presentation.theme.spacing];
 }
 
@@ -54,7 +56,7 @@ export function ContactList({
       {items.map((item) => (
         <p
           key={item.id}
-          className={`flex min-w-0 items-start gap-[0.35rem] break-all text-[clamp(0.38rem,0.8vw,0.57rem)] ${
+          className={`flex min-w-0 items-start gap-[0.35rem] text-[clamp(0.38rem,0.8vw,0.57rem)] break-all ${
             inverse ? "text-white/80" : "text-[#64706b]"
           }`}
         >
@@ -97,24 +99,40 @@ export function SectionBlock({
         className={`mb-[0.5rem] flex items-center gap-[0.45rem] ${
           ruled ? "border-b pb-[0.35rem]" : ""
         }`}
-        style={ruled ? { borderColor: `${presentation.theme.accentColor}55` } : undefined}
+        style={
+          ruled
+            ? { borderColor: `${presentation.theme.accentColor}55` }
+            : undefined
+        }
       >
         {presentation.theme.showIcons ? (
           <span
             className={`size-[0.38rem] shrink-0 rounded-sm ${inverse ? "bg-white/70" : ""}`}
-            style={inverse ? undefined : { backgroundColor: presentation.theme.accentColor }}
+            style={
+              inverse
+                ? undefined
+                : { backgroundColor: presentation.theme.accentColor }
+            }
           />
         ) : null}
         <h2
           className={`text-[clamp(0.48rem,0.98vw,0.7rem)] font-black tracking-[0.14em] uppercase ${
             inverse ? "text-white" : ""
           }`}
-          style={inverse ? undefined : { color: presentation.theme.accentColor }}
+          style={
+            inverse ? undefined : { color: presentation.theme.accentColor }
+          }
         >
           {section.title}
         </h2>
       </div>
-      {children ?? <SectionItems section={section} presentation={presentation} inverse={inverse} />}
+      {children ?? (
+        <SectionItems
+          section={section}
+          presentation={presentation}
+          inverse={inverse}
+        />
+      )}
     </section>
   );
 }
@@ -134,7 +152,12 @@ export function SectionItems({
     return (
       <div className="space-y-[var(--cv-item-gap)]">
         {section.items.map((item) => (
-          <SkillItem key={item.id} item={item} presentation={presentation} inverse={inverse} />
+          <SkillItem
+            key={item.id}
+            item={item}
+            presentation={presentation}
+            inverse={inverse}
+          />
         ))}
       </div>
     );
@@ -194,7 +217,11 @@ export function ItemBlock({
                   className={`mt-[0.16rem] text-[clamp(0.42rem,0.85vw,0.61rem)] font-bold ${
                     inverse ? "text-white/72" : ""
                   }`}
-                  style={inverse ? undefined : { color: presentation.theme.accentColor }}
+                  style={
+                    inverse
+                      ? undefined
+                      : { color: presentation.theme.accentColor }
+                  }
                 >
                   {item.subtitle}
                 </p>
@@ -213,7 +240,7 @@ export function ItemBlock({
           {item.body.map((paragraph, index) => (
             <p
               key={`${item.id}-body-${index}`}
-              className={`mt-[0.32rem] whitespace-pre-line text-[clamp(0.42rem,0.84vw,0.6rem)] ${
+              className={`mt-[0.32rem] text-[clamp(0.42rem,0.84vw,0.6rem)] whitespace-pre-line ${
                 inverse ? "text-white/72" : "text-[#59635e]"
               }`}
             >
@@ -226,7 +253,9 @@ export function ItemBlock({
                 <span
                   key={tag}
                   className={`rounded-full px-[0.38rem] py-[0.16rem] text-[clamp(0.3rem,0.62vw,0.44rem)] font-bold ${
-                    inverse ? "bg-white/12 text-white/70" : "bg-[#eef2ef] text-[#59645f]"
+                    inverse
+                      ? "bg-white/12 text-white/70"
+                      : "bg-[#eef2ef] text-[#59645f]"
                   }`}
                 >
                   {tag}
@@ -252,18 +281,30 @@ export function SkillItem({
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <p className={`text-[clamp(0.42rem,0.86vw,0.61rem)] font-extrabold ${inverse ? "text-white" : "text-[#35413c]"}`}>
+        <p
+          className={`text-[clamp(0.42rem,0.86vw,0.61rem)] font-extrabold ${inverse ? "text-white" : "text-[#35413c]"}`}
+        >
           {item.title}
         </p>
-        {item.meta ? <p className={`text-[clamp(0.3rem,0.62vw,0.44rem)] ${inverse ? "text-white/55" : "text-[#7a847f]"}`}>{item.meta}</p> : null}
+        {item.meta ? (
+          <p
+            className={`text-[clamp(0.3rem,0.62vw,0.44rem)] ${inverse ? "text-white/55" : "text-[#7a847f]"}`}
+          >
+            {item.meta}
+          </p>
+        ) : null}
       </div>
       {item.progress ? (
-        <div className={`mt-[0.25rem] h-[0.2rem] overflow-hidden rounded-full ${inverse ? "bg-white/15" : "bg-[#e2e8e4]"}`}>
+        <div
+          className={`mt-[0.25rem] h-[0.2rem] overflow-hidden rounded-full ${inverse ? "bg-white/15" : "bg-[#e2e8e4]"}`}
+        >
           <div
             className={`h-full rounded-full ${inverse ? "bg-white/70" : ""}`}
             style={{
               width: `${item.progress}%`,
-              ...(inverse ? {} : { backgroundColor: presentation.theme.accentColor }),
+              ...(inverse
+                ? {}
+                : { backgroundColor: presentation.theme.accentColor }),
             }}
           />
         </div>

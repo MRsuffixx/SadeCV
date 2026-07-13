@@ -89,8 +89,6 @@ export default authMiddleware(async (request) => {
 });
 
 export const config = {
-  matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|og.png).*)",
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|og.png).*)"],
   runtime: "nodejs",
 };

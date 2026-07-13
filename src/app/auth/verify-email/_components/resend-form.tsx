@@ -34,10 +34,7 @@ export function ResendVerificationForm({ email = "" }: { email?: string }) {
         >
           {state.success}
           {state.developmentUrl ? (
-            <a
-              className="mt-2 block underline"
-              href={state.developmentUrl}
-            >
+            <a className="mt-2 block underline" href={state.developmentUrl}>
               Open the local verification link
             </a>
           ) : null}

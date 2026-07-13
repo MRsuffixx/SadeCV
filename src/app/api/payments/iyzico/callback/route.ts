@@ -53,7 +53,10 @@ export async function POST(request: Request) {
       token.data,
       checkout.referenceId,
     );
-    if (result.conversationId && result.conversationId !== checkout.referenceId) {
+    if (
+      result.conversationId &&
+      result.conversationId !== checkout.referenceId
+    ) {
       return NextResponse.json(
         { error: "Checkout correlation failed" },
         { status: 400 },
@@ -119,7 +122,10 @@ export async function POST(request: Request) {
   }
 
   if (checkout.kind !== "SUBSCRIPTION") {
-    return NextResponse.json({ error: "Invalid checkout kind" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid checkout kind" },
+      { status: 400 },
+    );
   }
 
   const result = await retrieveIyzicoSubscription(token.data);

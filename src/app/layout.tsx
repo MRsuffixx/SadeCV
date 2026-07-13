@@ -50,7 +50,10 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await auth();
   return (
-    <html lang={session?.user.locale === "tr" ? "tr" : "en"} suppressHydrationWarning>
+    <html
+      lang={session?.user.locale === "tr" ? "tr" : "en"}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen bg-[#f7f7f2] text-[#171a18] antialiased">
         <TRPCReactProvider>{children}</TRPCReactProvider>
       </body>
