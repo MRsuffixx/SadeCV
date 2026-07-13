@@ -133,6 +133,23 @@
     box-shadow: 0 28px 80px rgb(18 63 53 / 10%);
     backdrop-filter: blur(18px);
   }
+
+  .preview-small {
+    font-size: clamp(0.44rem, 0.92vw, 0.64rem);
+    line-height: 1.45;
+  }
+
+  .preview-muted {
+    color: #707a75;
+    font-size: clamp(0.38rem, 0.78vw, 0.55rem);
+    line-height: 1.48;
+  }
+
+  .preview-body {
+    color: #59625e;
+    font-size: clamp(0.45rem, 0.94vw, 0.66rem);
+    line-height: 1.65;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

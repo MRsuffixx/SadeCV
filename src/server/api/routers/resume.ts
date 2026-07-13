@@ -4,6 +4,14 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { Prisma } from "../../../../generated/prisma";
+import {
+  createEmptyResumeContent,
+  parseResumeContent,
+  RESUME_SCHEMA_VERSION,
+  resumeContentSchema,
+  resumeDraftContentSchema,
+  resumeTemplateSchema,
+} from "~/lib/resume-model";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   consumeResumeGrant,
@@ -11,14 +19,6 @@ import {
   hasPremiumAccess,
   PREMIUM_TEMPLATES,
 } from "~/server/billing/entitlements";
-
-const templateSchema = z.enum([
-  "ATLAS",
-  "MONO",
-  "EDITORIAL",
-  "EXECUTIVE",
-  "STUDIO",
-]);
 
 const resumeSelect = {
   id: true,
@@ -60,7 +60,7 @@ export const resumeRouter = createTRPCRouter({
     .input(
       z.object({
         title: z.string().trim().min(1).max(120).default("Untitled CV"),
-        template: templateSchema.default("ATLAS"),
+        template: resumeTemplateSchema.default("ATLAS"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -84,6 +84,16 @@ export const resumeRouter = createTRPCRouter({
           }
 
           await consumeResumeGrant(tx, userId, grantReference);
+          const nameParts = (ctx.session.user.name ?? "")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+          const content = createEmptyResumeContent({
+            firstName: nameParts.shift() ?? "",
+            lastName: nameParts.join(" "),
+            email: ctx.session.user.email ?? "",
+          });
+
           return tx.resume.create({
             data: {
               userId,
@@ -96,18 +106,8 @@ export const resumeRouter = createTRPCRouter({
                   .replace(/^-|-$/g, "")
                   .slice(0, 40) || "cv"
               }-${randomUUID().slice(0, 8)}`,
-              contentJson: JSON.stringify({
-                basics: {
-                  name: ctx.session.user.name ?? "",
-                  email: ctx.session.user.email ?? "",
-                  headline: "",
-                  summary: "",
-                  imageUrl: "",
-                },
-                experience: [],
-                education: [],
-                skills: [],
-              }),
+              contentJson: JSON.stringify(content),
+              contentSchemaVersion: RESUME_SCHEMA_VERSION,
             },
             select: resumeSelect,
           });
@@ -131,18 +131,18 @@ export const resumeRouter = createTRPCRouter({
       z.object({
         id: z.string().cuid(),
         title: z.string().trim().min(1).max(120).optional(),
-        template: templateSchema.optional(),
+        template: resumeTemplateSchema.optional(),
         accentColor: z
           .string()
           .regex(/^#[0-9A-Fa-f]{6}$/)
           .optional(),
-        contentJson: z.string().max(500_000).optional(),
+        content: resumeDraftContentSchema.optional(),
         isPublic: z.boolean().optional(),
         status: z.enum(["DRAFT", "READY", "ARCHIVED"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const { id, content, ...data } = input;
       if (data.template && PREMIUM_TEMPLATES.has(data.template)) {
         const user = await ctx.db.user.findUniqueOrThrow({
           where: { id: ctx.session.user.id },
@@ -155,9 +155,38 @@ export const resumeRouter = createTRPCRouter({
           });
         }
       }
+
+      if (data.status === "READY") {
+        let contentToValidate = content;
+        if (!contentToValidate) {
+          const current = await ctx.db.resume.findFirst({
+            where: { id, userId: ctx.session.user.id },
+            select: { contentJson: true },
+          });
+          if (!current) throw new TRPCError({ code: "NOT_FOUND" });
+          contentToValidate = parseResumeContent(current.contentJson);
+        }
+        const validation = resumeContentSchema.safeParse(contentToValidate);
+        if (!validation.success) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "RESUME_VALIDATION_FAILED",
+            cause: validation.error,
+          });
+        }
+      }
+
       const result = await ctx.db.resume.updateMany({
         where: { id, userId: ctx.session.user.id },
-        data,
+        data: {
+          ...data,
+          ...(content
+            ? {
+                contentJson: JSON.stringify(content),
+                contentSchemaVersion: RESUME_SCHEMA_VERSION,
+              }
+            : {}),
+        },
       });
 
       if (!result.count) throw new TRPCError({ code: "NOT_FOUND" });
@@ -184,6 +213,7 @@ export const resumeRouter = createTRPCRouter({
               template: source.template,
               accentColor: source.accentColor,
               contentJson: source.contentJson,
+              contentSchemaVersion: source.contentSchemaVersion,
               status: "DRAFT",
             },
             select: resumeSelect,

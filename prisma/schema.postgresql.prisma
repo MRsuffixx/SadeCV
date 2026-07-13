@@ -71,31 +71,33 @@ model VerificationToken {
 }
 
 model Resume {
-  id          String          @id @default(cuid())
-  userId      String
-  title       String          @default("Untitled CV")
-  slug        String
-  template    String          @default("ATLAS")
-  accentColor String          @default("#0F766E")
-  contentJson String          @default("{}")
-  status      String          @default("DRAFT")
-  isPublic    Boolean         @default(false)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions    ResumeVersion[]
+  id                   String          @id @default(cuid())
+  userId               String
+  title                String          @default("Untitled CV")
+  slug                 String
+  template             String          @default("ATLAS")
+  accentColor          String          @default("#0F766E")
+  contentJson          String          @default("{}")
+  contentSchemaVersion Int             @default(3)
+  status               String          @default("DRAFT")
+  isPublic             Boolean         @default(false)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions             ResumeVersion[]
 
   @@unique([userId, slug])
   @@index([userId, updatedAt])
 }
 
 model ResumeVersion {
-  id          String   @id @default(cuid())
-  resumeId    String
-  contentJson String
-  label       String?
-  createdAt   DateTime @default(now())
-  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  id                   String   @id @default(cuid())
+  resumeId             String
+  contentJson          String
+  contentSchemaVersion Int      @default(3)
+  label                String?
+  createdAt            DateTime @default(now())
+  resume               Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@index([resumeId, createdAt])
 }

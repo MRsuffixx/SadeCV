@@ -37,13 +37,16 @@ export const metadata: Metadata = {
       "A calm, intelligent workspace for creating exceptional professional CVs.",
     images: ["/og.png"],
   },
+  other: {
+    "darkreader-lock": "",
+  },
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-[#f7f7f2] text-[#171a18] antialiased">
         <TRPCReactProvider>{children}</TRPCReactProvider>
       </body>

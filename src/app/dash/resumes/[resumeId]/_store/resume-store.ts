@@ -1,14 +1,19 @@
 import { create } from "zustand";
 
 import {
-  emptyResumeContent,
+  createEmptyResumeContent,
+  createResumeArrayItem,
   parseResumeContent,
+  type PersonalInformation,
+  type ResumeArrayItemMap,
+  type ResumeArraySection,
   type ResumeContent,
-  type ResumeEducation,
-  type ResumeExperience,
   type ResumeRecord,
   type ResumeTemplate,
 } from "~/lib/resume-model";
+
+type PersonalField = Exclude<keyof PersonalInformation, "socials">;
+type SocialField = keyof PersonalInformation["socials"];
 
 type ResumeState = {
   resumeId: string | null;
@@ -23,24 +28,54 @@ type ResumeState = {
   setTemplate: (value: ResumeTemplate) => void;
   setAccentColor: (value: string) => void;
   setPublic: (value: boolean) => void;
-  setBasic: (field: keyof ResumeContent["basics"], value: string) => void;
-  setSkills: (value: string[]) => void;
-  addExperience: () => void;
-  updateExperience: (
-    id: string,
-    field: keyof Omit<ResumeExperience, "id">,
-    value: string,
+  setPersonal: <K extends PersonalField>(
+    field: K,
+    value: PersonalInformation[K],
   ) => void;
-  removeExperience: (id: string) => void;
-  addEducation: () => void;
-  updateEducation: (
-    id: string,
-    field: keyof Omit<ResumeEducation, "id">,
-    value: string,
+  setSocial: (
+    field: SocialField,
+    value: PersonalInformation["socials"][SocialField],
   ) => void;
-  removeEducation: (id: string) => void;
+  setProfessionalSummary: (value: string) => void;
+  setReferencesAvailableUponRequest: (value: boolean) => void;
+  addItem: <S extends ResumeArraySection>(section: S) => void;
+  updateItem: <S extends ResumeArraySection>(
+    section: S,
+    id: string,
+    patch: Partial<Omit<ResumeArrayItemMap[S], "id">>,
+  ) => void;
+  removeItem: <S extends ResumeArraySection>(section: S, id: string) => void;
+  moveItem: <S extends ResumeArraySection>(
+    section: S,
+    id: string,
+    direction: -1 | 1,
+  ) => void;
   markSaved: () => void;
 };
+
+type AnyResumeItem = ResumeArrayItemMap[ResumeArraySection];
+
+function getItems(content: ResumeContent, section: ResumeArraySection) {
+  if (section === "references") return content.references.items;
+  return content[section] as AnyResumeItem[];
+}
+
+function replaceItems(
+  content: ResumeContent,
+  section: ResumeArraySection,
+  items: AnyResumeItem[],
+): ResumeContent {
+  if (section === "references") {
+    return {
+      ...content,
+      references: {
+        ...content.references,
+        items: items as ResumeContent["references"]["items"],
+      },
+    };
+  }
+  return { ...content, [section]: items };
+}
 
 export const useResumeStore = create<ResumeState>()((set) => ({
   resumeId: null,
@@ -48,7 +83,7 @@ export const useResumeStore = create<ResumeState>()((set) => ({
   template: "ATLAS",
   accentColor: "#0F766E",
   isPublic: false,
-  content: emptyResumeContent,
+  content: createEmptyResumeContent(),
   saved: true,
   hydrate: (resume) =>
     set({
@@ -64,82 +99,85 @@ export const useResumeStore = create<ResumeState>()((set) => ({
   setTemplate: (template) => set({ template, saved: false }),
   setAccentColor: (accentColor) => set({ accentColor, saved: false }),
   setPublic: (isPublic) => set({ isPublic, saved: false }),
-  setBasic: (field, value) =>
+  setPersonal: (field, value) =>
     set((state) => ({
       content: {
         ...state.content,
-        basics: { ...state.content.basics, [field]: value },
+        personalInformation: {
+          ...state.content.personalInformation,
+          [field]: value,
+        },
       },
       saved: false,
     })),
-  setSkills: (skills) =>
-    set((state) => ({
-      content: { ...state.content, skills },
-      saved: false,
-    })),
-  addExperience: () =>
+  setSocial: (field, value) =>
     set((state) => ({
       content: {
         ...state.content,
-        experience: [
-          ...state.content.experience,
-          {
-            id: crypto.randomUUID(),
-            role: "",
-            company: "",
-            period: "",
-            description: "",
+        personalInformation: {
+          ...state.content.personalInformation,
+          socials: {
+            ...state.content.personalInformation.socials,
+            [field]: value,
           },
-        ],
+        },
       },
       saved: false,
     })),
-  updateExperience: (id, field, value) =>
+  setProfessionalSummary: (professionalSummary) =>
+    set((state) => ({
+      content: { ...state.content, professionalSummary },
+      saved: false,
+    })),
+  setReferencesAvailableUponRequest: (availableUponRequest) =>
     set((state) => ({
       content: {
         ...state.content,
-        experience: state.content.experience.map((item) =>
-          item.id === id ? { ...item, [field]: value } : item,
+        references: { ...state.content.references, availableUponRequest },
+      },
+      saved: false,
+    })),
+  addItem: (section) =>
+    set((state) => ({
+      content: replaceItems(state.content, section, [
+        ...getItems(state.content, section),
+        createResumeArrayItem(section),
+      ]),
+      saved: false,
+    })),
+  updateItem: (section, id, patch) =>
+    set((state) => ({
+      content: replaceItems(
+        state.content,
+        section,
+        getItems(state.content, section).map((item) =>
+          item.id === id ? { ...item, ...patch } : item,
         ),
-      },
+      ),
       saved: false,
     })),
-  removeExperience: (id) =>
+  removeItem: (section, id) =>
     set((state) => ({
-      content: {
-        ...state.content,
-        experience: state.content.experience.filter((item) => item.id !== id),
-      },
+      content: replaceItems(
+        state.content,
+        section,
+        getItems(state.content, section).filter((item) => item.id !== id),
+      ),
       saved: false,
     })),
-  addEducation: () =>
-    set((state) => ({
-      content: {
-        ...state.content,
-        education: [
-          ...state.content.education,
-          { id: crypto.randomUUID(), school: "", degree: "", period: "" },
-        ],
-      },
-      saved: false,
-    })),
-  updateEducation: (id, field, value) =>
-    set((state) => ({
-      content: {
-        ...state.content,
-        education: state.content.education.map((item) =>
-          item.id === id ? { ...item, [field]: value } : item,
-        ),
-      },
-      saved: false,
-    })),
-  removeEducation: (id) =>
-    set((state) => ({
-      content: {
-        ...state.content,
-        education: state.content.education.filter((item) => item.id !== id),
-      },
-      saved: false,
-    })),
+  moveItem: (section, id, direction) =>
+    set((state) => {
+      const items = [...getItems(state.content, section)];
+      const from = items.findIndex((item) => item.id === id);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= items.length) return state;
+      const [item] = items.splice(from, 1);
+      if (!item) return state;
+      items.splice(to, 0, item);
+      return {
+        content: replaceItems(state.content, section, items),
+        saved: false,
+      };
+    }),
   markSaved: () => set({ saved: true }),
 }));
