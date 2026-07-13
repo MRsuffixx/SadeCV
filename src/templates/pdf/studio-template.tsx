@@ -27,6 +27,8 @@ export function StudioPdfTemplate({ presentation }: { presentation: ResumePresen
     <Document title={presentation.identity.name} subject="Creative professional resume">
       <Page size="A4" wrap style={[styles.page, { fontFamily: theme.body }]}>
         <View style={[styles.sidebar, { backgroundColor: presentation.theme.accentColor }]}>
+          {/* React PDF images are decorative here and do not expose DOM alt text. */}
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
           {showPhoto ? <Image src={presentation.identity.avatarUrl} style={styles.avatar} /> : <View style={styles.initials}><Text style={[styles.initialsText, { fontFamily: theme.heading }]}>{presentation.identity.name.slice(0, 1)}</Text></View>}
           <Text style={[styles.name, { fontFamily: theme.heading }]}>{presentation.identity.name}</Text>
           <Text style={[styles.title, { fontFamily: theme.heading }]}>{presentation.identity.professionalTitle}</Text>
