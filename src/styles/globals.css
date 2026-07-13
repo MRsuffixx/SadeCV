@@ -145,3 +145,22 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .cv-print-area,
+  .cv-print-area * {
+    visibility: visible;
+  }
+
+  .cv-print-area {
+    position: absolute;
+    inset: 0;
+    width: 210mm;
+    height: 297mm;
+    box-shadow: none;
+  }
+}

@@ -74,6 +74,7 @@ export function TurnstileField({ className = "" }: { className?: string }) {
             src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
             strategy="afterInteractive"
             onLoad={() => setReady(true)}
+            onReady={() => setReady(true)}
           />
           <div ref={containerRef} className="min-h-[65px] overflow-hidden" />
         </>
@@ -87,4 +88,3 @@ export function TurnstileField({ className = "" }: { className?: string }) {
     </div>
   );
 }
-
