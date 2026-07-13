@@ -81,12 +81,19 @@ export async function POST(
         tierStatus: true,
         tierExpiresAt: true,
         bannedAt: true,
+        role: true,
       },
     }),
   ]);
   if (!resume) return Response.json({ error: "NOT_FOUND" }, { status: 404 });
   if (!user || user.bannedAt) {
     return Response.json({ error: "ACCOUNT_DISABLED" }, { status: 403 });
+  }
+  if (
+    user.role !== "ADMIN" &&
+    (await isFeatureEnabled(db, "MAINTENANCE_MODE"))
+  ) {
+    return Response.json({ error: "MAINTENANCE_MODE" }, { status: 503 });
   }
   if (
     isPremiumTemplate(input.data.template) &&

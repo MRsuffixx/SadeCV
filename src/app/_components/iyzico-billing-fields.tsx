@@ -21,9 +21,10 @@ export function IyzicoBillingFields({ email }: { email?: string }) {
         />
         <BillingField
           name="identityNumber"
-          label="T.C. identity number"
-          inputMode="numeric"
-          pattern="[0-9]{11}"
+          label="National ID or passport number"
+          autoComplete="off"
+          minLength="5"
+          maxLength="50"
         />
         <BillingField
           name="gsmNumber"
@@ -61,7 +62,21 @@ export function IyzicoBillingFields({ email }: { email?: string }) {
             maxLength={240}
           />
         </label>
-        <input type="hidden" name="country" value="Türkiye" />
+        <label>
+          <span className="field-label">Country</span>
+          <select
+            name="country"
+            className="field"
+            defaultValue="Türkiye"
+            required
+          >
+            <option value="Türkiye">Türkiye</option>
+            <option value="Germany">Germany</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="United States">United States</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
       </div>
     </div>
   );

@@ -3,7 +3,10 @@ import "~/styles/globals.css";
 import { type Metadata } from "next";
 
 import { env } from "~/env";
+import { auth } from "~/server/auth";
 import { TRPCReactProvider } from "~/trpc/react";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.APP_DOMAIN),
@@ -42,11 +45,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await auth();
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={session?.user.locale === "tr" ? "tr" : "en"} suppressHydrationWarning>
       <body className="min-h-screen bg-[#f7f7f2] text-[#171a18] antialiased">
         <TRPCReactProvider>{children}</TRPCReactProvider>
       </body>

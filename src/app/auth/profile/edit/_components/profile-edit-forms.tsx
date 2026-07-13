@@ -107,7 +107,7 @@ export function ProfileEditForms({
               <option value="tr">Türkçe</option>
             </select>
           </div>
-          <TurnstileField />
+          <TurnstileField resetSignal={profileState} />
           <button
             type="submit"
             disabled={profilePending}
@@ -170,7 +170,7 @@ export function ProfileEditForms({
               placeholder="10+ characters, mixed case and a number"
             />
           </div>
-          <TurnstileField />
+          <TurnstileField resetSignal={passwordState} />
           <button
             type="submit"
             disabled={passwordPending}
@@ -219,7 +219,7 @@ export function ProfileEditForms({
           {googleConnected ? (
             <form action={unlinkAction} className="space-y-4">
               <Message state={unlinkState} />
-              <TurnstileField />
+              <TurnstileField resetSignal={unlinkState} />
               <button
                 type="submit"
                 disabled={unlinkPending || !user.hasPassword}

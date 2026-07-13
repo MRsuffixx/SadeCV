@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { isValidBillingIdentity } from "~/lib/identity";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -25,13 +26,11 @@ import { assertTrustedOrigin } from "~/server/security/origin";
 import { getClientIp, verifyTurnstile } from "~/server/security/turnstile";
 
 const providerSchema = z.enum(["STRIPE", "IYZICO"]);
-const billingProfileSchema = z.object({
+const billingProfileSchema = z
+  .object({
   name: z.string().trim().min(1).max(80),
   surname: z.string().trim().min(1).max(80),
-  identityNumber: z
-    .string()
-    .trim()
-    .regex(/^\d{11}$/),
+    identityNumber: z.string().trim().min(5).max(50),
   gsmNumber: z
     .string()
     .trim()
@@ -40,9 +39,20 @@ const billingProfileSchema = z.object({
   address: z.string().trim().min(5).max(240),
   city: z.string().trim().min(2).max(80),
   district: z.string().trim().min(2).max(80),
-  country: z.string().trim().min(2).max(80).default("Türkiye"),
+    country: z.string().trim().min(2).max(80).default("Türkiye"),
   zipCode: z.string().trim().min(3).max(12),
-});
+  })
+  .strict()
+  .superRefine((profile, ctx) => {
+    if (!isValidBillingIdentity(profile.identityNumber, profile.country)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["identityNumber"],
+        message:
+          "Enter a valid Turkish identity number or a 5–50 character passport number.",
+      });
+    }
+  });
 
 export const billingRouter = createTRPCRouter({
   providers: publicProcedure.query(() => ({

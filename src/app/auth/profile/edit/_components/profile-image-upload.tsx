@@ -65,7 +65,11 @@ export function ProfileImageUpload({
               const file = event.target.files?.[0];
               if (!file) return;
               setMessage("");
-              await startUpload([file]);
+              try {
+                await startUpload([file]);
+              } catch {
+                setMessage("The photo could not be uploaded.");
+              }
               event.target.value = "";
             }}
           />

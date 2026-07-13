@@ -104,7 +104,7 @@ export function AuthForm({
         )}
       </div>
 
-      <TurnstileField className="pt-1" />
+      <TurnstileField className="pt-1" resetSignal={state} />
 
       <button
         type="submit"

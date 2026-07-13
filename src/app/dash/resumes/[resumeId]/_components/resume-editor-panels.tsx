@@ -14,7 +14,7 @@ import {
   Type,
 } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useResumeStore } from "~/app/dash/resumes/[resumeId]/_store/resume-store";
 import type {
@@ -113,7 +113,11 @@ function PersonalInformationPanel({ resumeId }: { resumeId: string }) {
             const file = event.target.files?.[0];
             if (file) {
               setUploadError("");
-              await startUpload([file], { resumeId });
+              try {
+                await startUpload([file], { resumeId });
+              } catch {
+                setUploadError("The image could not be uploaded. Please try again.");
+              }
             }
             event.target.value = "";
           }}
@@ -1802,20 +1806,31 @@ function TagsField({
   onChange: (value: string[]) => void;
   placeholder: string;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const serialized = value.join(", ");
+  const [draft, setDraft] = useState(serialized);
+
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setDraft(serialized);
+  }, [serialized]);
+
+  const commit = () =>
+    onChange(
+      draft
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    );
+
   return (
     <label className="block">
       <FieldLabel label={label} />
       <input
+        ref={inputRef}
         className="field"
-        value={value.join(", ")}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean),
-          )
-        }
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
         placeholder={placeholder}
       />
       <span className="mt-1.5 block text-[10px] text-[#89918d]">

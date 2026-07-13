@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 declare global {
@@ -18,6 +19,7 @@ declare global {
         },
       ) => string;
       remove: (widgetId: string) => void;
+      reset: (widgetId: string) => void;
     };
   }
 }
@@ -25,10 +27,13 @@ declare global {
 export function TurnstileField({
   className = "",
   onTokenChange,
+  resetSignal,
 }: {
   className?: string;
   onTokenChange?: (token: string) => void;
+  resetSignal?: unknown;
 }) {
+  const pathname = usePathname();
   const generatedId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -72,6 +77,13 @@ export function TurnstileField({
   }, [renderWidget]);
 
   useEffect(() => onTokenChange?.(token), [onTokenChange, token]);
+
+  useEffect(() => {
+    setToken("");
+    if (widgetId.current && window.turnstile) {
+      window.turnstile.reset(widgetId.current);
+    }
+  }, [pathname, resetSignal]);
 
   return (
     <div className={className}>

@@ -159,7 +159,10 @@ export function TipJar({ email }: { email?: string }) {
       )}
 
       <div className="mt-5">
-        <TurnstileField onTokenChange={setTurnstileToken} />
+        <TurnstileField
+          onTokenChange={setTurnstileToken}
+          resetSignal={`${provider}:${checkout.failureCount}`}
+        />
       </div>
       {checkout.error ? (
         <p

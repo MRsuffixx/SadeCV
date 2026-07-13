@@ -13,6 +13,7 @@ import { ZodError } from "zod";
 
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+import { isFeatureEnabled } from "~/server/system/feature-flags";
 
 /**
  * 1. CONTEXT
@@ -27,11 +28,29 @@ import { db } from "~/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const session = await auth();
+  const [session, maintenanceMode] = await Promise.all([
+    auth(),
+    isFeatureEnabled(db, "MAINTENANCE_MODE"),
+  ]);
+  const maintenanceBypass =
+    maintenanceMode && session?.user?.id
+      ? Boolean(
+          await db.user.findFirst({
+            where: {
+              id: session.user.id,
+              role: "ADMIN",
+              bannedAt: null,
+            },
+            select: { id: true },
+          }),
+        )
+      : false;
 
   return {
     db,
     session,
+    maintenanceMode,
+    maintenanceBypass,
     ...opts,
   };
 };
@@ -101,6 +120,21 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
   return result;
 });
 
+const maintenanceMiddleware = t.middleware(({ ctx, next, path }) => {
+  if (
+    ctx.maintenanceMode &&
+    !ctx.maintenanceBypass &&
+    path !== "system.status" &&
+    !path.startsWith("admin.")
+  ) {
+    throw new TRPCError({
+      code: "SERVICE_UNAVAILABLE",
+      message: "MAINTENANCE_MODE",
+    });
+  }
+  return next();
+});
+
 /**
  * Public (unauthenticated) procedure
  *
@@ -108,7 +142,9 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure.use(timingMiddleware);
+export const publicProcedure = t.procedure
+  .use(maintenanceMiddleware)
+  .use(timingMiddleware);
 
 /**
  * Protected (authenticated) procedure
@@ -119,6 +155,7 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  * @see https://trpc.io/docs/procedures
  */
 export const protectedProcedure = t.procedure
+  .use(maintenanceMiddleware)
   .use(timingMiddleware)
   .use(async ({ ctx, next }) => {
     if (!ctx.session?.user) {

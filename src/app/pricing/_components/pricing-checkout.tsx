@@ -208,7 +208,10 @@ export function PricingCheckout({
               {provider === "IYZICO" ? (
                 <IyzicoBillingFields email={email} />
               ) : null}
-              <TurnstileField onTokenChange={setTurnstileToken} />
+              <TurnstileField
+                onTokenChange={setTurnstileToken}
+                resetSignal={`${provider}:${checkout.failureCount}`}
+              />
               {checkout.error ? (
                 <p
                   role="alert"
