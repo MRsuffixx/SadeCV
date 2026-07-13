@@ -1,46 +1,135 @@
+# ==========================================
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ==========================================
 
-# dependencies
+# Dependencies & Package Managers
+# ------------------------------------------
 /node_modules
 /.pnp
 .pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+npm-debug.log*
+.pnpm-debug.log*
 
-# testing
-/coverage
+# Code Generation & Generated Artifacts
+# ------------------------------------------
+**/generated/
+**/__generated__/
+/src/generated/
+/prisma/generated/
+.graphqlclient/
 
-# database
-/prisma/db.sqlite
-/prisma/db.sqlite-journal
-db.sqlite
-
-# next.js
+# Next.js & Build Outputs
+# ------------------------------------------
 /.next/
 /out/
-next-env.d.ts
-
-# production
 /build
+/dist
+next-env.d.ts
+*.tsbuildinfo
+.wxt/
 
-# misc
-.DS_Store
+# Testing & Coverage
+# ------------------------------------------
+/coverage
+/.nyc_output
+/cypress/screenshots
+/cypress/videos
+/.playwright
+/test-results
+junit.xml
+
+# Database (Prisma & SQLite)
+# ------------------------------------------
+/prisma/db.sqlite
+/prisma/db.sqlite-journal
+/prisma/migrations/**/*.sql
+db.sqlite
+db.sqlite-journal
+*.db
+*.db-journal
+
+# Environment Variables & Secrets
+# ------------------------------------------
+# .env.example hariç hiçbir çevre değişkenini commit'leme!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
 *.pem
+*.key
+*.cert
+*.pfx
 
-# debug
+# Vercel & Deployment
+# ------------------------------------------
+.vercel
+.turbo
+
+# IDEs, Editors & Tooling
+# ------------------------------------------
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.history/
+*.code-workspace
+
+# JetBrains (WebStorm, IntelliJ, etc.)
+.idea/
+*.iw
+*.iws
+*.ipr
+
+# Other Editors
+.project
+.classpath
+.cproject
+.settings/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs & Diagnostics
+# ------------------------------------------
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
 
-# local env files
-# do not commit any .env files to git, except for the .env.example file. https://create.t3.gg/en/usage/env-variables#using-environment-variables
-.env
-.env*.local
+# Linters & Formatters
+# ------------------------------------------
+.eslintcache
+.stylelintcache
+.prettiercache
+.eslintcache
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-
-# idea files
-.idea
+# OS Specific Files
+# ------------------------------------------
+.Spotlight-V100
+.Trashes
+Icon?
