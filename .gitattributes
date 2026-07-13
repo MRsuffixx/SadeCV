@@ -1,4 +1,6 @@
 * text=auto eol=lf
+*.md text eol=lf
+*.mdx text eol=lf
 
 *.png binary
 *.jpg binary

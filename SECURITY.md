@@ -4,9 +4,9 @@
 
 SadeCV henüz kararlı bir public sürüm yayımlamamıştır. Güvenlik düzeltmeleri yalnızca `main` dalının güncel durumu için hazırlanır. Eski commit'ler, fork'lar ve yetkisiz dağıtımlar desteklenmez.
 
-| Sürüm | Destek |
-| --- | --- |
-| `main` | Destekleniyor |
+| Sürüm                                | Destek         |
+| ------------------------------------ | -------------- |
+| `main`                               | Destekleniyor  |
 | Eski commit'ler ve yetkisiz kopyalar | Desteklenmiyor |
 
 ## Güvenlik açığı bildirme

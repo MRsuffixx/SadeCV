@@ -51,7 +51,6 @@ junit.xml
 # ------------------------------------------
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
-/prisma/migrations/**/*.sql
 db.sqlite
 db.sqlite-journal
 *.db
@@ -126,7 +125,6 @@ lerna-debug.log*
 .eslintcache
 .stylelintcache
 .prettiercache
-.eslintcache
 
 # OS Specific Files
 # ------------------------------------------

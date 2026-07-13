@@ -2,7 +2,7 @@
 
 Bu projedeki önemli değişiklikler bu dosyada belgelenir. Biçim [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) yaklaşımını, sürümler ise [Semantic Versioning](https://semver.org/spec/v2.0.0.html) ilkelerini izler.
 
-## [Unreleased]
+## Unreleased
 
 ### Added
 
@@ -10,7 +10,7 @@ Bu projedeki önemli değişiklikler bu dosyada belgelenir. Biçim [Keep a Chang
 - Source-available lisans, katkı, güvenlik, destek ve davranış politikaları.
 - GitHub issue/PR şablonları, CODEOWNERS, Dependabot ve CI iş akışı.
 
-## [0.1.0] - 2026-07-13
+## 0.1.0 - 2026-07-13
 
 ### Added
 
@@ -40,6 +40,3 @@ Bu projedeki önemli değişiklikler bu dosyada belgelenir. Biçim [Keep a Chang
 - Yönetim router'ındaki TypeScript sorunları düzeltildi.
 - Auth JWT tipleri ve UploadThing auth hataları sadeleştirildi.
 - Ödeme transaction takibi ve checkout arayüzü iyileştirildi.
-
-[Unreleased]: https://github.com/MRsuffixx/SadeCV/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/MRsuffixx/SadeCV/releases/tag/v0.1.0

@@ -33,7 +33,7 @@ SadeCV, profesyonel özgeçmişleri oluşturmak, düzenlemek ve PDF olarak dış
 ### CV oluşturma
 
 - Kişisel bilgiler, profesyonel özet, iş deneyimi, eğitim, beceriler, diller, sertifikalar, projeler, ödüller, gönüllülük, yayınlar, referanslar, hobiler ve özel bölümler.
-- Zod ile doğrulanan, sürümlenmiş CV içerik modeli (`schemaVersion: 3`).
+- Zod ile doğrulanan, sürümlenmiş CV içerik modeli (`schemaVersion: 3`; veritabanında `contentSchemaVersion`).
 - Eski içerik biçimlerini güncel şemaya dönüştüren geriye dönük uyumluluk katmanı.
 - Zustand tabanlı editör durumu ve eş zamanlı canlı HTML önizlemesi.
 - Renk paleti, yazı tipi eşleşmesi, yoğunluk, ikon ve profil fotoğrafı seçenekleri.
@@ -42,14 +42,14 @@ SadeCV, profesyonel özgeçmişleri oluşturmak, düzenlemek ve PDF olarak dış
 
 ### Şablon sistemi
 
-| Şablon | Kategori | Plan | Kullanım amacı |
-| --- | --- | --- | --- |
-| Atlas ATS | ATS | Ücretsiz | ATS portalları ve yoğun başvurular |
-| Mono ATS | ATS | Ücretsiz | Mühendislik ve teknik roller |
-| Editorial | Akademik | Ücretsiz | Araştırma, yazarlık ve kültür alanları |
-| Boardroom | Kurumsal | Premium | Üst düzey yönetim rolleri |
-| Studio Grid | Yaratıcı | Premium | Tasarım, ürün ve yaratıcı teknoloji |
-| Scholarly | Akademik | Premium | Akademi, araştırma ve fon başvuruları |
+| Şablon      | Kategori | Plan     | Kullanım amacı                         |
+| ----------- | -------- | -------- | -------------------------------------- |
+| Atlas ATS   | ATS      | Ücretsiz | ATS portalları ve yoğun başvurular     |
+| Mono ATS    | ATS      | Ücretsiz | Mühendislik ve teknik roller           |
+| Editorial   | Akademik | Ücretsiz | Araştırma, yazarlık ve kültür alanları |
+| Boardroom   | Kurumsal | Premium  | Üst düzey yönetim rolleri              |
+| Studio Grid | Yaratıcı | Premium  | Tasarım, ürün ve yaratıcı teknoloji    |
+| Scholarly   | Akademik | Premium  | Akademi, araştırma ve fon başvuruları  |
 
 ### Hesap ve plan yönetimi
 
@@ -71,22 +71,22 @@ SadeCV, profesyonel özgeçmişleri oluşturmak, düzenlemek ve PDF olarak dış
 
 ## Teknoloji yığını
 
-| Katman | Teknoloji |
-| --- | --- |
-| Uygulama çatısı | Next.js 15, App Router, React 19 |
-| Dil | TypeScript 5.8, strict mode |
-| UI | Tailwind CSS 4, Lucide React |
-| İstemci durumu | Zustand, TanStack Query |
-| API | tRPC 11, SuperJSON, Zod |
+| Katman           | Teknoloji                                     |
+| ---------------- | --------------------------------------------- |
+| Uygulama çatısı  | Next.js 15, App Router, React 19              |
+| Dil              | TypeScript 5.8, strict mode                   |
+| UI               | Tailwind CSS 4, Lucide React                  |
+| İstemci durumu   | Zustand, TanStack Query                       |
+| API              | tRPC 11, SuperJSON, Zod                       |
 | Kimlik doğrulama | Auth.js/NextAuth v5, Prisma Adapter, bcryptjs |
-| Veritabanı | Prisma 6, SQLite veya PostgreSQL |
-| PDF | `@react-pdf/renderer` |
-| Ödeme | Stripe, iyzico |
-| Dosya depolama | UploadThing v7 |
-| Bot koruması | Cloudflare Turnstile |
-| Hız sınırlama | Valkey/Redis; yoksa süreç içi bellek |
-| Kod kalitesi | ESLint 9, typescript-eslint, Prettier |
-| Paket yöneticisi | pnpm 11.9.0 |
+| Veritabanı       | Prisma 6, SQLite veya PostgreSQL              |
+| PDF              | `@react-pdf/renderer`                         |
+| Ödeme            | Stripe, iyzico                                |
+| Dosya depolama   | UploadThing v7                                |
+| Bot koruması     | Cloudflare Turnstile                          |
+| Hız sınırlama    | Valkey/Redis; yoksa süreç içi bellek          |
+| Kod kalitesi     | ESLint 9, typescript-eslint, Prettier         |
+| Paket yöneticisi | pnpm 11.9.0                                   |
 
 ## Mimari
 
@@ -123,7 +123,7 @@ flowchart LR
 3. `publicProcedure`, `protectedProcedure` ve `protectedAdminProcedure` farklı yetki seviyeleri uygular.
 4. Prisma, seçilen sağlayıcıya göre SQLite veya PostgreSQL ile konuşur.
 5. Ödeme dönüşleri ve webhook'lar imza/idempotency kontrollerinden sonra transaction içinde işlenir.
-6. PDF rotası oturum, kaynak sahipliği, özellik bayrağı, kota ve Premium şablon erişimini tekrar doğrular.
+6. PDF rotası oturum, kaynak sahipliği, özellik bayrağı, hız sınırı ve Premium şablon erişimini tekrar doğrular.
 
 ## Proje yapısı
 
@@ -146,60 +146,70 @@ flowchart LR
 │   ├── app/                  # Sayfalar, layout'lar ve API rotaları
 │   ├── lib/                  # CV veri modeli ve doğrulama
 │   ├── server/
-│   │   ├── api/              # tRPC context ve router'lar
+│   │   ├── api/routers/      # tRPC router'ları
 │   │   ├── auth/             # Auth.js yapılandırması
 │   │   ├── billing/          # Plan ve kota kuralları
 │   │   ├── payments/         # Stripe/iyzico ve senkronizasyon
 │   │   ├── security/         # Turnstile ve rate limit
-│   │   └── system/           # Özellik bayrakları
+│   │   ├── system/           # Özellik bayrakları
+│   │   ├── db.ts             # Prisma bağlantısı
+│   │   └── uploadthing.ts    # Dosya yükleme router'ı
+│   ├── styles/               # Tailwind giriş noktası ve tema token'ları
 │   ├── templates/
 │   │   ├── dom/              # Canlı önizleme renderer'ları
 │   │   └── pdf/              # PDF renderer'ları
 │   ├── trpc/                 # React ve RSC tRPC istemcileri
-│   └── styles/               # Tailwind giriş noktası ve tema token'ları
+│   ├── types/                # Harici paket tipleri
+│   ├── utils/                # İstemci yardımcıları
+│   ├── env.js                # Ortam değişkeni şeması
+│   └── middleware.ts         # Auth, admin ve bakım kontrolleri
 ├── .env.example
 ├── next.config.js
 ├── package.json
 └── pnpm-workspace.yaml
 ```
 
+TypeScript path alias'ı `~/*`, `./src/*` dizinine karşılık gelir.
+
 ## Rotalar
 
 ### Kullanıcı arayüzü
 
-| Rota | Erişim | Amaç |
-| --- | --- | --- |
-| `/` | Herkese açık | Ürün tanıtım sayfası |
-| `/auth/login` | Herkese açık | Giriş |
-| `/auth/register` | Herkese açık, bayrak kontrollü | Hesap oluşturma |
-| `/auth/profile` | Oturum gerekli | Profil özeti |
-| `/auth/profile/edit` | Oturum gerekli | Profil ve parola ayarları |
-| `/dash` | Oturum gerekli | CV listesi ve kota bilgisi |
-| `/dash/resumes/[resumeId]` | Oturum ve sahiplik gerekli | CV editörü ve önizleme |
-| `/pricing` | Herkese açık | Planlar ve abonelik başlatma |
-| `/pricing/success` | Herkese açık | Abonelik ödeme sonucu |
-| `/support` | Herkese açık | Tek seferlik destek ödemesi |
-| `/support/success` | Herkese açık | Destek ödeme sonucu |
-| `/maintenance` | Herkese açık | Bakım ekranı |
-| `/admin` | ADMIN | Platform özeti |
-| `/admin/users` | ADMIN | Kullanıcı yönetimi |
-| `/admin/users/[userId]` | ADMIN | Kullanıcı ayrıntısı |
-| `/admin/resumes` | ADMIN | CV moderasyonu |
-| `/admin/finance` | ADMIN | Finans ve webhook görünümü |
-| `/admin/settings` | ADMIN | Özellik bayrakları |
+| Rota                       | Erişim                         | Amaç                         |
+| -------------------------- | ------------------------------ | ---------------------------- |
+| `/`                        | Herkese açık                   | Ürün tanıtım sayfası         |
+| `/auth/login`              | Herkese açık                   | Giriş                        |
+| `/auth/register`           | Herkese açık, bayrak kontrollü | Hesap oluşturma              |
+| `/auth/profile`            | Oturum gerekli                 | Profil özeti                 |
+| `/auth/profile/edit`       | Oturum gerekli                 | Profil ve parola ayarları    |
+| `/dash`                    | Oturum gerekli                 | CV listesi ve kota bilgisi   |
+| `/dash/resumes/[resumeId]` | Oturum ve sahiplik gerekli     | CV editörü ve önizleme       |
+| `/pricing`                 | Herkese açık                   | Planlar ve abonelik başlatma |
+| `/pricing/success`         | Herkese açık                   | Abonelik ödeme sonucu        |
+| `/support`                 | Herkese açık                   | Tek seferlik destek ödemesi  |
+| `/support/success`         | Herkese açık                   | Destek ödeme sonucu          |
+| `/maintenance`             | Herkese açık                   | Bakım ekranı                 |
+| `/admin`                   | ADMIN                          | Platform özeti               |
+| `/admin/users`             | ADMIN                          | Kullanıcı yönetimi           |
+| `/admin/users/[userId]`    | ADMIN                          | Kullanıcı ayrıntısı          |
+| `/admin/resumes`           | ADMIN                          | CV moderasyonu               |
+| `/admin/finance`           | ADMIN                          | Finans ve webhook görünümü   |
+| `/admin/settings`          | ADMIN                          | Özellik bayrakları           |
 
 ### API
 
-| Rota | Metot | Amaç |
-| --- | --- | --- |
-| `/api/auth/[...nextauth]` | GET/POST | Auth.js handler'ı |
-| `/api/trpc/[trpc]` | GET/POST | tRPC fetch adapter |
-| `/api/resumes/[resumeId]/pdf` | POST | Sahiplik kontrollü PDF üretimi |
-| `/api/uploadthing` | GET/POST | UploadThing handler'ı |
-| `/api/webhooks/checkout` | POST | Stripe ve iyzico webhook'ları |
-| `/api/payments/iyzico/callback` | POST | iyzico hosted checkout dönüşü |
+| Rota                            | Metot    | Amaç                           |
+| ------------------------------- | -------- | ------------------------------ |
+| `/api/auth/[...nextauth]`       | GET/POST | Auth.js handler'ı              |
+| `/api/trpc/[trpc]`              | GET/POST | tRPC fetch adapter             |
+| `/api/resumes/[resumeId]/pdf`   | POST     | Sahiplik kontrollü PDF üretimi |
+| `/api/uploadthing`              | GET/POST | UploadThing handler'ı          |
+| `/api/webhooks/checkout`        | POST     | Stripe ve iyzico webhook'ları  |
+| `/api/payments/iyzico/callback` | POST     | iyzico hosted checkout dönüşü  |
 
 ## Başlangıç
+
+Aşağıdaki adımlar yalnızca lisans sahibi tarafından yazılı geliştirme veya katkı izni verilmiş kişiler içindir. Depoyu herkese açık olarak görüntüleyebilmek, kodu klonlama ya da çalıştırma hakkı vermez.
 
 ### Gereksinimler
 
@@ -244,6 +254,8 @@ DATABASE_URL="file:./db.sqlite"
 APP_DOMAIN="http://localhost:3000"
 ```
 
+Prisma göreli SQLite yolunu şema dosyasının bulunduğu dizine göre çözer; bu ayarla veritabanı `prisma/db.sqlite` olarak oluşur.
+
 ### 4. Bağımlılıkları kurun
 
 ```bash
@@ -278,29 +290,29 @@ Uygulama varsayılan olarak `http://localhost:3000` adresinde açılır.
 
 Ortam şeması `src/env.js`, güvenli örnek değerler `.env.example` içinde tutulur. Boş dizeler `undefined` kabul edilir. Gerçek `.env` dosyasını veya gizli anahtarları commit etmeyin.
 
-| Değişken | Zorunluluk | Açıklama |
-| --- | --- | --- |
-| `AUTH_SECRET` | Production'da zorunlu | Auth.js token imzalama anahtarı |
-| `AUTH_GOOGLE_ID` | İsteğe bağlı | Google OAuth istemci kimliği |
-| `AUTH_GOOGLE_SECRET` | İsteğe bağlı | Google OAuth istemci sırrı |
-| `TURNSTILE_SECRET_KEY` | Production için gerekli | Turnstile sunucu doğrulaması |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Production için gerekli | Tarayıcıdaki Turnstile widget anahtarı |
-| `DATABASE_URL` | Zorunlu | Prisma bağlantı adresi |
-| `DATABASE_PROVIDER` | İsteğe bağlı | `sqlite` veya `postgresql`; varsayılan `sqlite` |
-| `VALKEY_URL` | İsteğe bağlı | Dağıtık hız sınırlama için Valkey/Redis URL'si |
-| `APP_DOMAIN` | İsteğe bağlı | Uygulamanın mutlak public origin'i; varsayılan `http://localhost:3000` |
-| `APP_PORT` | İsteğe bağlı | Uygulama port yapılandırma değeri; varsayılan `3000` |
-| `UPLOADTHING_TOKEN` | İsteğe bağlı | UploadThing v7 token paketi |
-| `STRIPE_SECRET_KEY` | Stripe için gerekli | Stripe gizli API anahtarı (`sk_…`) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook için gerekli | Webhook imza sırrı (`whsec_…`) |
-| `STRIPE_PREMIUM_PRICE_ID` | Stripe aboneliği için gerekli | Premium fiyat kimliği (`price_…`) |
-| `IYZICO_API_KEY` | iyzico için gerekli | iyzico API anahtarı |
-| `IYZICO_SECRET_KEY` | iyzico için gerekli | iyzico gizli anahtarı |
-| `IYZICO_MERCHANT_ID` | iyzico webhook için gerekli | Üye işyeri kimliği |
-| `IYZICO_BASE_URL` | iyzico için gerekli | Sandbox veya production API kökü |
-| `IYZICO_PREMIUM_PLAN_REFERENCE_CODE` | iyzico aboneliği için gerekli | Premium plan referansı |
-| `NODE_ENV` | Çalışma zamanı tarafından atanır | `development`, `test` veya `production` |
-| `SKIP_ENV_VALIDATION` | Yalnızca build aracı | Ayarlandığında env doğrulamasını atlar; production runtime'da kullanılmamalıdır |
+| Değişken                             | Zorunluluk                       | Açıklama                                                                                                            |
+| ------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_SECRET`                        | Production'da zorunlu            | Auth.js token imzalama anahtarı                                                                                     |
+| `AUTH_GOOGLE_ID`                     | İsteğe bağlı                     | Google OAuth istemci kimliği                                                                                        |
+| `AUTH_GOOGLE_SECRET`                 | İsteğe bağlı                     | Google OAuth istemci sırrı                                                                                          |
+| `TURNSTILE_SECRET_KEY`               | Production için gerekli          | Turnstile sunucu doğrulaması                                                                                        |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`     | Production için gerekli          | Tarayıcıdaki Turnstile widget anahtarı                                                                              |
+| `DATABASE_URL`                       | Zorunlu                          | Prisma bağlantı adresi                                                                                              |
+| `DATABASE_PROVIDER`                  | İsteğe bağlı                     | `sqlite` veya `postgresql`; varsayılan `sqlite`                                                                     |
+| `VALKEY_URL`                         | İsteğe bağlı                     | Dağıtık hız sınırlama için Valkey/Redis URL'si                                                                      |
+| `APP_DOMAIN`                         | İsteğe bağlı                     | Uygulamanın mutlak public origin'i; varsayılan `http://localhost:3000`                                              |
+| `APP_PORT`                           | İsteğe bağlı                     | Env şemasındaki port değeri; varsayılan `3000`. Mevcut başlangıç scriptleri bunu Next.js'e doğrudan aktarmamaktadır |
+| `UPLOADTHING_TOKEN`                  | İsteğe bağlı                     | UploadThing v7 token paketi                                                                                         |
+| `STRIPE_SECRET_KEY`                  | Stripe için gerekli              | Stripe gizli API anahtarı (`sk_…`)                                                                                  |
+| `STRIPE_WEBHOOK_SECRET`              | Stripe webhook için gerekli      | Webhook imza sırrı (`whsec_…`)                                                                                      |
+| `STRIPE_PREMIUM_PRICE_ID`            | Stripe aboneliği için gerekli    | Premium fiyat kimliği (`price_…`)                                                                                   |
+| `IYZICO_API_KEY`                     | iyzico için gerekli              | iyzico API anahtarı                                                                                                 |
+| `IYZICO_SECRET_KEY`                  | iyzico için gerekli              | iyzico gizli anahtarı                                                                                               |
+| `IYZICO_MERCHANT_ID`                 | iyzico webhook için gerekli      | Üye işyeri kimliği                                                                                                  |
+| `IYZICO_BASE_URL`                    | iyzico için gerekli              | Sandbox veya production API kökü                                                                                    |
+| `IYZICO_PREMIUM_PLAN_REFERENCE_CODE` | iyzico aboneliği için gerekli    | Premium plan referansı                                                                                              |
+| `NODE_ENV`                           | Çalışma zamanı tarafından atanır | `development`, `test` veya `production`                                                                             |
+| `SKIP_ENV_VALIDATION`                | Yalnızca build aracı             | Ayarlandığında env doğrulamasını atlar; production runtime'da kullanılmamalıdır                                     |
 
 ### Entegrasyonların devre dışı kalma davranışı
 
@@ -320,32 +332,32 @@ Ortam şeması `src/env.js`, güvenli örnek değerler `.env.example` içinde tu
 
 ### Ana veri modelleri
 
-| Model | Sorumluluk |
-| --- | --- |
-| `User` | Hesap, rol, plan, ban ve sağlayıcı kimlikleri |
-| `Account` / `Session` | Auth.js hesap bağlantıları ve oturum modeli |
-| `Resume` | Güncel CV içeriği, tema, şablon ve görünürlük |
-| `ResumeVersion` | CV snapshot'ları için ayrılmış model |
-| `UsageGrant` | Aylık ücretsiz CV oluşturma kotası |
-| `Subscription` | Sağlayıcı bağımsız Premium abonelik durumu |
-| `Donation` | Tek seferlik destek ödemeleri |
-| `PaymentEvent` | Webhook idempotency ve işleme sonucu |
-| `PaymentTransaction` | Birleşik finans hareketi kaydı |
-| `FeatureFlag` | Operasyonel özellik bayrakları |
-| `AdminAuditLog` | Yönetici işlemlerinin denetim izi |
+| Model                 | Sorumluluk                                    |
+| --------------------- | --------------------------------------------- |
+| `User`                | Hesap, rol, plan, ban ve sağlayıcı kimlikleri |
+| `Account` / `Session` | Auth.js hesap bağlantıları ve oturum modeli   |
+| `Resume`              | Güncel CV içeriği, tema, şablon ve görünürlük |
+| `ResumeVersion`       | CV snapshot'ları için ayrılmış model          |
+| `UsageGrant`          | Aylık ücretsiz CV oluşturma kotası            |
+| `Subscription`        | Sağlayıcı bağımsız Premium abonelik durumu    |
+| `Donation`            | Tek seferlik destek ödemeleri                 |
+| `PaymentEvent`        | Webhook idempotency ve işleme sonucu          |
+| `PaymentTransaction`  | Birleşik finans hareketi kaydı                |
+| `FeatureFlag`         | Operasyonel özellik bayrakları                |
+| `AdminAuditLog`       | Yönetici işlemlerinin denetim izi             |
 
 ### Veritabanı komutları
 
-| Komut | Açıklama |
-| --- | --- |
-| `pnpm db:generate:client` | Seçili sağlayıcı için Prisma Client üretir |
-| `pnpm db:generate` | SQLite şemasıyla `prisma migrate dev` çalıştırır |
-| `pnpm db:generate:postgres` | PostgreSQL şeması için Prisma Client üretir |
-| `pnpm db:push` | SQLite şemasını veritabanına iter |
-| `pnpm db:push:postgres` | PostgreSQL şemasını veritabanına iter |
-| `pnpm db:migrate` | SQLite migration'larını deploy eder |
-| `pnpm db:migrate:postgres` | PostgreSQL migration'larını deploy eder |
-| `pnpm db:studio` | Prisma Studio'yu açar |
+| Komut                       | Açıklama                                         |
+| --------------------------- | ------------------------------------------------ |
+| `pnpm db:generate:client`   | Seçili sağlayıcı için Prisma Client üretir       |
+| `pnpm db:generate`          | SQLite şemasıyla `prisma migrate dev` çalıştırır |
+| `pnpm db:generate:postgres` | PostgreSQL şeması için Prisma Client üretir      |
+| `pnpm db:push`              | SQLite şemasını veritabanına iter                |
+| `pnpm db:push:postgres`     | PostgreSQL şemasını veritabanına iter            |
+| `pnpm db:migrate`           | SQLite migration'larını deploy eder              |
+| `pnpm db:migrate:postgres`  | PostgreSQL migration'larını deploy eder          |
+| `pnpm db:studio`            | Prisma Studio'yu açar                            |
 
 Şema değişikliklerinde SQLite ve PostgreSQL dosyalarını birlikte güncel tutun. Production migration dosyaları sürüm kontrolüne alınmalıdır.
 
@@ -413,10 +425,10 @@ Webhook'lar Stripe ile ortak endpoint'e gelir ve `x-iyz-signature-v3` imzasıyla
 
 UploadThing iki dosya rotası sunar:
 
-| Rota | Sınır | Davranış |
-| --- | --- | --- |
-| `profileImage` | 1 görsel, en fazla 4 MB | Tamamlandığında `User.image` güncellenir |
-| `resumeAsset` | 1 görsel 8 MB veya 1 PDF 16 MB | CV sahipliği doğrulanır ve dosya URL'si döndürülür |
+| Rota           | Sınır                          | Davranış                                           |
+| -------------- | ------------------------------ | -------------------------------------------------- |
+| `profileImage` | 1 görsel, en fazla 4 MB        | Tamamlandığında `User.image` güncellenir           |
+| `resumeAsset`  | 1 görsel 8 MB veya 1 PDF 16 MB | CV sahipliği doğrulanır ve dosya URL'si döndürülür |
 
 Token olarak eski `sk_live_…` biçimi değil, UploadThing v7 token paketi kullanılmalıdır. Veritabanında dosyanın kendisi değil, dönen URL saklanır.
 
@@ -443,19 +455,19 @@ Son yönetici hesabını düşürmeye veya silmeye karşı sunucu taraflı korum
 
 ## Komutlar
 
-| Komut | Açıklama |
-| --- | --- |
-| `pnpm dev` | Turbopack ile geliştirme sunucusu |
-| `pnpm build` | Prisma Client üretir ve production build alır |
-| `pnpm start` | Production Next.js sunucusunu başlatır |
-| `pnpm preview` | Build alıp production sunucusunu başlatır |
-| `pnpm lint` | ESLint çalıştırır |
-| `pnpm lint:fix` | Düzeltilebilir lint sorunlarını düzeltir |
-| `pnpm typecheck` | TypeScript'i çıktı üretmeden denetler |
-| `pnpm check` | ESLint ve TypeScript kontrollerini birlikte çalıştırır |
-| `pnpm format:check` | Prettier uyumluluğunu kontrol eder |
-| `pnpm format:write` | Desteklenen kaynak dosyalarını biçimlendirir |
-| `pnpm admin:grant -- <email>` | Var olan kullanıcıya yönetici rolü verir |
+| Komut                         | Açıklama                                               |
+| ----------------------------- | ------------------------------------------------------ |
+| `pnpm dev`                    | Turbopack ile geliştirme sunucusu                      |
+| `pnpm build`                  | Prisma Client üretir ve production build alır          |
+| `pnpm start`                  | Production Next.js sunucusunu başlatır                 |
+| `pnpm preview`                | Build alıp production sunucusunu başlatır              |
+| `pnpm lint`                   | ESLint çalıştırır                                      |
+| `pnpm lint:fix`               | Düzeltilebilir lint sorunlarını düzeltir               |
+| `pnpm typecheck`              | TypeScript'i çıktı üretmeden denetler                  |
+| `pnpm check`                  | ESLint ve TypeScript kontrollerini birlikte çalıştırır |
+| `pnpm format:check`           | Prettier uyumluluğunu kontrol eder                     |
+| `pnpm format:write`           | Desteklenen kaynak dosyalarını biçimlendirir           |
+| `pnpm admin:grant -- <email>` | Var olan kullanıcıya yönetici rolü verir               |
 
 ## Kalite ve test durumu
 

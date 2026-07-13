@@ -29,8 +29,10 @@ Manuel doğrulama adımları:
 ## Etki
 
 - [ ] Environment değişkeni eklendi veya değişti
-- [ ] SQLite ve PostgreSQL Prisma şemaları etkilendi
-- [ ] Migration gerekiyor
+- [ ] Prisma şeması etkilenmedi
+- [ ] SQLite Prisma şeması güncellendi
+- [ ] PostgreSQL Prisma şeması güncellendi
+- [ ] Migration gerekiyor ve dosyaları eklendi
 - [ ] Auth veya yetkilendirme davranışı etkilendi
 - [ ] Ödeme, webhook veya finans verisi etkilendi
 - [ ] Geriye dönük uyumsuz değişiklik var
