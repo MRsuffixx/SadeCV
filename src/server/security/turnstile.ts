@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 import { env } from "~/env";
 
 type TurnstileResponse = {
@@ -50,10 +52,13 @@ export async function verifyTurnstile(
 }
 
 export function getClientIp(headers: Headers): string {
-  return (
-    headers.get("cf-connecting-ip") ??
-    headers.get("x-real-ip") ??
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
+  const candidate =
+    env.TRUSTED_PROXY_MODE === "cloudflare"
+      ? headers.get("cf-connecting-ip")
+      : env.TRUSTED_PROXY_MODE === "platform"
+        ? (headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+          headers.get("x-real-ip"))
+        : null;
+
+  return candidate && isIP(candidate) ? candidate : "unknown";
 }

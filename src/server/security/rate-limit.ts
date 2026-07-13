@@ -1,16 +1,25 @@
+import "server-only";
+
+import { createHash } from "node:crypto";
+
 import { env } from "~/env";
+import { db } from "~/server/db";
 
-type Bucket = { count: number; resetAt: number };
-
-const memoryBuckets = new Map<string, Bucket>();
 let valkeyClientPromise:
-  Promise<Awaited<ReturnType<typeof createValkeyClient>>> | undefined;
+  | Promise<Awaited<ReturnType<typeof createValkeyClient>>>
+  | undefined;
+
+function storageKey(key: string) {
+  return createHash("sha256")
+    .update(`sadecv:limit:${key}`, "utf8")
+    .digest("hex");
+}
 
 async function createValkeyClient() {
   const { createClient } = await import("redis");
   const client = createClient({ url: env.VALKEY_URL });
   client.on("error", () => {
-    // Requests fall back to the process-local limiter when Valkey is unavailable.
+    // The database fallback remains available if this connection drops.
   });
   await client.connect();
   return client;
@@ -26,11 +35,10 @@ async function checkValkey(
   try {
     valkeyClientPromise ??= createValkeyClient();
     const client = await valkeyClientPromise;
-    const namespacedKey = `sadecv:limit:${key}`;
     const count = await client.eval(
       "local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]); end; return count;",
       {
-        keys: [namespacedKey],
+        keys: [key],
         arguments: [String(windowSeconds)],
       },
     );
@@ -41,42 +49,64 @@ async function checkValkey(
   }
 }
 
-function checkMemory(
+async function checkDatabase(
   key: string,
   limit: number,
   windowSeconds: number,
-): boolean {
-  const now = Date.now();
-  const bucket = memoryBuckets.get(key);
+) {
+  const now = new Date();
+  const nextResetAt = new Date(now.getTime() + windowSeconds * 1_000);
 
-  if (!bucket || bucket.resetAt <= now) {
-    memoryBuckets.set(key, {
-      count: 1,
-      resetAt: now + windowSeconds * 1_000,
+  return db.$transaction(async (tx) => {
+    // This write obtains a row lock on PostgreSQL and participates in SQLite's
+    // serialized writer lock. All readers below therefore observe one counter
+    // transition at a time, including when a window rolls over.
+    await tx.rateLimitBucket.upsert({
+      where: { key },
+      create: { key, count: 0, resetAt: nextResetAt },
+      update: { updatedAt: now },
     });
-    return true;
-  }
+    const bucket = await tx.rateLimitBucket.findUniqueOrThrow({
+      where: { key },
+    });
+    const expired = bucket.resetAt <= now;
+    const count = expired ? 1 : bucket.count + 1;
 
-  bucket.count += 1;
-
-  if (memoryBuckets.size > 10_000) {
-    for (const [bucketKey, value] of memoryBuckets) {
-      if (value.resetAt <= now) memoryBuckets.delete(bucketKey);
-    }
-  }
-
-  return bucket.count <= limit;
+    await tx.rateLimitBucket.update({
+      where: { key },
+      data: {
+        count,
+        ...(expired ? { resetAt: nextResetAt } : {}),
+      },
+    });
+    return count <= limit;
+  });
 }
 
 export async function rateLimit(
   key: string,
   options: { limit: number; windowSeconds: number },
 ): Promise<boolean> {
+  const keyHash = storageKey(key);
   const distributed = await checkValkey(
-    key,
+    keyHash,
     options.limit,
     options.windowSeconds,
   );
+  if (distributed !== null) return distributed;
 
-  return distributed ?? checkMemory(key, options.limit, options.windowSeconds);
+  try {
+    return await checkDatabase(
+      keyHash,
+      options.limit,
+      options.windowSeconds,
+    );
+  } catch (error) {
+    console.error("Rate limiter storage failed", {
+      error: error instanceof Error ? error.message : "Unknown storage error",
+    });
+    // Security-sensitive operations must not become unlimited when shared
+    // storage is unavailable.
+    return false;
+  }
 }

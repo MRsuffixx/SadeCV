@@ -167,6 +167,7 @@ model PaymentEvent {
   type         String
   payloadHash  String?
   status       String    @default("PROCESSED")
+  attempts     Int       @default(1)
   errorMessage String?
   processedAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -225,13 +226,27 @@ model FeatureFlag {
 model AdminAuditLog {
   id           String   @id @default(cuid())
   actorId      String?
+  actorEmail   String?
+  actorName    String?
   action       String
   entityType   String
   entityId     String?
+  status       String   @default("SUCCEEDED")
+  errorMessage String?
   metadataJson String?
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   actor        User?    @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([entityType, entityId])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
 }
