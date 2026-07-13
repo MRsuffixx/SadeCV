@@ -120,14 +120,40 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  */
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
-  .use(({ ctx, next }) => {
+  .use(async ({ ctx, next }) => {
     if (!ctx.session?.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    const currentUser = await ctx.db.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        tier: true,
+        tierStatus: true,
+        tierExpiresAt: true,
+        bannedAt: true,
+      },
+    });
+    if (!currentUser || currentUser.bannedAt) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "ACCOUNT_DISABLED" });
     }
     return next({
       ctx: {
         // infers the `session` as non-nullable
         session: { ...ctx.session, user: ctx.session.user },
+        currentUser,
       },
     });
   });
+
+export const protectedAdminProcedure = protectedProcedure.use(
+  ({ ctx, next }) => {
+    if (ctx.currentUser.role !== "ADMIN") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "ADMIN_REQUIRED" });
+    }
+    return next();
+  },
+);

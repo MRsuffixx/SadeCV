@@ -37,6 +37,7 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const { data: entitlement } = api.billing.entitlements.useQuery();
+  const { data: systemStatus } = api.system.status.useQuery();
   const mutation = api.resume.update.useMutation({ onSuccess: markSaved });
 
   const save = () => {
@@ -53,6 +54,10 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
   };
 
   const exportPdf = async () => {
+    if (systemStatus?.pdfGeneration === false) {
+      setExportError("PDF generation is temporarily unavailable.");
+      return;
+    }
     setExporting(true);
     setExportError("");
     try {
@@ -133,7 +138,12 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
             <button
               type="button"
               onClick={exportPdf}
-              disabled={exporting}
+              disabled={exporting || systemStatus?.pdfGeneration === false}
+              title={
+                systemStatus?.pdfGeneration === false
+                  ? "PDF generation is temporarily disabled"
+                  : undefined
+              }
               className="button-secondary min-h-9 px-3 text-xs disabled:opacity-50"
             >
               {exporting ? (

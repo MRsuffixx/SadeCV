@@ -21,7 +21,18 @@ declare module "next-auth" {
     user: {
       id: string;
       tier: string;
+      role: "USER" | "ADMIN";
+      banned: boolean;
     } & DefaultSession["user"];
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string;
+    tier?: string;
+    role?: "USER" | "ADMIN";
+    banned?: boolean;
   }
 }
 
@@ -57,7 +68,7 @@ const providers: NextAuthConfig["providers"] = [
         where: { email: parsed.data.email },
       });
 
-      if (!user?.passwordHash) return null;
+      if (!user?.passwordHash || user.bannedAt) return null;
       const validPassword = await compare(
         parsed.data.password,
         user.passwordHash,
@@ -97,6 +108,17 @@ export const authConfig = {
       if (user) {
         token.id = user.id;
         token.tier = "tier" in user ? String(user.tier) : "FREE";
+        token.role =
+          "role" in user && user.role === "ADMIN" ? "ADMIN" : "USER";
+        token.banned = "bannedAt" in user && Boolean(user.bannedAt);
+      } else if (typeof token.id === "string") {
+        const currentUser = await db.user.findUnique({
+          where: { id: token.id },
+          select: { tier: true, role: true, bannedAt: true },
+        });
+        token.tier = currentUser?.tier ?? "FREE";
+        token.role = currentUser?.role === "ADMIN" ? "ADMIN" : "USER";
+        token.banned = !currentUser || Boolean(currentUser.bannedAt);
       }
       return token;
     },
@@ -106,7 +128,19 @@ export const authConfig = {
         ...session.user,
         id: typeof token.id === "string" ? token.id : (token.sub ?? ""),
         tier: typeof token.tier === "string" ? token.tier : "FREE",
+        role: token.role === "ADMIN" ? "ADMIN" : "USER",
+        banned: Boolean(token.banned),
       },
     }),
+  },
+  events: {
+    signIn: async ({ user }) => {
+      if (user.id) {
+        await db.user.updateMany({
+          where: { id: user.id, bannedAt: null },
+          data: { lastLoginAt: new Date() },
+        });
+      }
+    },
   },
 } satisfies NextAuthConfig;

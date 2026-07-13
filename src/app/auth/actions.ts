@@ -10,6 +10,7 @@ import { db } from "~/server/db";
 import { signIn } from "~/server/auth";
 import { rateLimit } from "~/server/security/rate-limit";
 import { getClientIp, verifyTurnstile } from "~/server/security/turnstile";
+import { isFeatureEnabled } from "~/server/system/feature-flags";
 
 export type AuthActionState = {
   error?: string;
@@ -58,6 +59,10 @@ export async function registerAction(
   const parsed = registerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };
+  }
+
+  if (!(await isFeatureEnabled(db, "REGISTRATION"))) {
+    return { error: "New registrations are temporarily disabled." };
   }
 
   const requestHeaders = await headers();
