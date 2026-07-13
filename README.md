@@ -502,7 +502,6 @@ Depo belirli bir hosting sağlayıcısına bağlanmamıştır. Node.js çalışt
 ```bash
 pnpm install --frozen-lockfile
 pnpm check
-pnpm format:check
 pnpm build
 pnpm start
 ```
