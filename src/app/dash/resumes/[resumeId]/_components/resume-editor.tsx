@@ -30,7 +30,13 @@ export function ResumeEditor({ resume }: { resume: ResumeRecord }) {
 
   useEffect(() => {
     const state = useResumeStore.getState();
-    if (state.resumeId !== resume.id || state.saved) hydrate(resume);
+    const serverUpdatedAt = new Date(resume.updatedAt).getTime();
+    if (
+      state.resumeId !== resume.id ||
+      (state.saved && state.hydratedUpdatedAt !== serverUpdatedAt)
+    ) {
+      hydrate(resume);
+    }
   }, [hydrate, resume]);
 
   if (activeResumeId !== resume.id) {
@@ -149,7 +155,7 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
         .trim()
         .replace(/[^a-z0-9]+/gi, "-")
         .replace(/^-|-$/g, "");
-      anchor.download = `${safeTitle.length ? safeTitle : "sadecv"}.pdf`;
+      anchor.download = `${safeTitle.length ? safeTitle : "sadecv"}-${resumeId.slice(-8)}.pdf`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
     } catch {

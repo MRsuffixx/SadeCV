@@ -22,6 +22,7 @@ type SocialField = keyof PersonalInformation["socials"];
 
 type ResumeState = {
   resumeId: string | null;
+  hydratedUpdatedAt: number | null;
   title: string;
   selectedTemplateId: ResumeTemplate;
   theme: ResumeTheme;
@@ -88,6 +89,7 @@ function replaceItems(
 
 export const useResumeStore = create<ResumeState>()((set) => ({
   resumeId: null,
+  hydratedUpdatedAt: null,
   title: "Untitled CV",
   selectedTemplateId: "ATLAS",
   theme: DEFAULT_RESUME_THEME,
@@ -100,6 +102,7 @@ export const useResumeStore = create<ResumeState>()((set) => ({
       const content = parseResumeContent(resume.contentJson);
       set({
         resumeId: resume.id,
+        hydratedUpdatedAt: new Date(resume.updatedAt).getTime(),
         title: resume.title,
         selectedTemplateId: resume.template as ResumeTemplate,
         theme: parseResumeTheme(resume.themeJson, resume.accentColor),
@@ -111,6 +114,7 @@ export const useResumeStore = create<ResumeState>()((set) => ({
     } catch {
       set({
         resumeId: resume.id,
+        hydratedUpdatedAt: new Date(resume.updatedAt).getTime(),
         title: resume.title,
         selectedTemplateId: resume.template as ResumeTemplate,
         theme: parseResumeTheme(resume.themeJson, resume.accentColor),

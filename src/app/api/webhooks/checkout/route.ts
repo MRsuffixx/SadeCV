@@ -1,28 +1,22 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
 import { getStripe } from "~/server/payments/stripe";
+import {
+  parseIyzicoEpochDate,
+  retrieveIyzicoSubscriptionDetails,
+  type IyzicoSubscriptionRecord,
+} from "~/server/payments/iyzico";
+import {
+  verifyIyzicoWebhookSignature,
+  type IyzicoWebhookPayload,
+} from "~/server/payments/iyzico-webhook";
 import { processStripeEvent, recomputeUserPlan } from "~/server/payments/sync";
 
 export const runtime = "nodejs";
-
-type IyzicoWebhook = {
-  merchantId?: string;
-  paymentConversationId?: string;
-  paymentId?: string;
-  iyziPaymentId?: string | number;
-  token?: string;
-  status?: string;
-  iyziReferenceCode?: string;
-  iyziEventType?: string;
-  eventType?: string;
-  subscriptionReferenceCode?: string;
-  orderReferenceCode?: string;
-  customerReferenceCode?: string;
-};
 
 function isUniqueConstraintError(error: unknown) {
   return (
@@ -33,66 +27,58 @@ function isUniqueConstraintError(error: unknown) {
   );
 }
 
-function signatureMatches(actual: string, expected: string) {
-  const actualBuffer = Buffer.from(actual.toLowerCase(), "utf8");
-  const expectedBuffer = Buffer.from(expected.toLowerCase(), "utf8");
+function subscriptionRecord(
+  result: Awaited<ReturnType<typeof retrieveIyzicoSubscriptionDetails>>,
+  referenceCode: string,
+) {
+  const data = result.data;
+  const direct = data as IyzicoSubscriptionRecord | undefined;
   return (
-    actualBuffer.length === expectedBuffer.length &&
-    timingSafeEqual(actualBuffer, expectedBuffer)
+    data?.items?.find(
+      (item) =>
+        item.referenceCode === referenceCode ||
+        item.subscriptionReferenceCode === referenceCode,
+    ) ??
+    (direct?.referenceCode === referenceCode ||
+    direct?.subscriptionReferenceCode === referenceCode
+      ? direct
+      : null)
   );
 }
 
-function verifyIyzicoWebhook(payload: IyzicoWebhook, signature: string) {
-  if (!env.IYZICO_SECRET_KEY) return false;
-  const eventType = payload.iyziEventType ?? payload.eventType ?? "";
-  let message: string;
-
-  if (eventType.startsWith("subscription.")) {
-    const merchantId = payload.merchantId ?? env.IYZICO_MERCHANT_ID ?? "";
-    if (!merchantId) return false;
-    message =
-      merchantId +
-      env.IYZICO_SECRET_KEY +
-      eventType +
-      (payload.subscriptionReferenceCode ?? "") +
-      (payload.orderReferenceCode ?? "") +
-      (payload.customerReferenceCode ?? "");
-  } else if (payload.token) {
-    message =
-      env.IYZICO_SECRET_KEY +
-      eventType +
-      (payload.iyziPaymentId ?? "") +
-      payload.token +
-      (payload.paymentConversationId ?? "") +
-      (payload.status ?? "");
-  } else {
-    message =
-      env.IYZICO_SECRET_KEY +
-      eventType +
-      (payload.paymentId ?? "") +
-      (payload.paymentConversationId ?? "") +
-      (payload.status ?? "");
-  }
-  const expected = createHmac("sha256", env.IYZICO_SECRET_KEY)
-    .update(message)
-    .digest("hex");
-  return signatureMatches(signature, expected);
-}
-
 async function handleIyzico(rawBody: string, signature: string) {
-  let payload: IyzicoWebhook;
+  let payload: IyzicoWebhookPayload;
   try {
-    payload = JSON.parse(rawBody) as IyzicoWebhook;
+    payload = JSON.parse(rawBody) as IyzicoWebhookPayload;
   } catch {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
-  if (!verifyIyzicoWebhook(payload, signature)) {
+  if (
+    !env.IYZICO_SECRET_KEY ||
+    !verifyIyzicoWebhookSignature(
+      payload,
+      signature,
+      env.IYZICO_SECRET_KEY,
+      env.IYZICO_MERCHANT_ID,
+    )
+  ) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
   const eventType = payload.iyziEventType ?? payload.eventType ?? "unknown";
   const eventId =
     payload.iyziReferenceCode ??
     createHash("sha256").update(rawBody).digest("hex");
+  const providerSubscriptionId = payload.subscriptionReferenceCode;
+  const authoritativeSubscription = providerSubscriptionId
+    ? subscriptionRecord(
+        await retrieveIyzicoSubscriptionDetails(providerSubscriptionId),
+        providerSubscriptionId,
+      )
+    : null;
+
+  if (eventType.startsWith("subscription.") && !authoritativeSubscription) {
+    throw new Error("IYZICO_SUBSCRIPTION_RETRIEVE_FAILED");
+  }
 
   try {
     await db.$transaction(async (tx) => {
@@ -102,13 +88,11 @@ async function handleIyzico(rawBody: string, signature: string) {
           provider: "IYZICO",
           type: eventType,
           payloadHash: createHash("sha256").update(rawBody).digest("hex"),
-          status: "PROCESSED",
-          processedAt: new Date(),
+          status: "PROCESSING",
         },
       });
 
       if (eventType.startsWith("subscription.")) {
-        const providerSubscriptionId = payload.subscriptionReferenceCode;
         if (!providerSubscriptionId) return;
         const existing = await tx.subscription.findUnique({
           where: {
@@ -122,7 +106,12 @@ async function handleIyzico(rawBody: string, signature: string) {
         await tx.subscription.update({
           where: { id: existing.id },
           data: {
-            status: eventType.endsWith(".success") ? "ACTIVE" : "UNPAID",
+            status:
+              authoritativeSubscription?.subscriptionStatus?.toUpperCase() ??
+              (eventType.endsWith(".success") ? "ACTIVE" : "UNPAID"),
+            currentPeriodEnd: parseIyzicoEpochDate(
+              authoritativeSubscription?.endDate,
+            ),
           },
         });
         await tx.paymentTransaction.upsert({
@@ -149,22 +138,60 @@ async function handleIyzico(rawBody: string, signature: string) {
           },
         });
         await recomputeUserPlan(tx, existing.userId);
+        await tx.paymentEvent.update({
+          where: { id: `IYZICO:${eventId}` },
+          data: { status: "PROCESSED", processedAt: new Date() },
+        });
         return;
       }
 
       const donationId = payload.paymentConversationId;
       if (donationId) {
-        await tx.donation.updateMany({
+        const donation = await tx.donation.findFirst({
           where: { id: donationId, provider: "IYZICO" },
-          data: {
-            status: payload.status === "SUCCESS" ? "PAID" : "FAILED",
-            providerPaymentId: String(
-              payload.iyziPaymentId ?? payload.paymentId ?? "",
-            ),
-            ...(payload.status === "SUCCESS" ? { paidAt: new Date() } : {}),
-          },
         });
+        if (donation) {
+          await tx.donation.update({
+            where: { id: donation.id },
+            data: {
+              status: payload.status === "SUCCESS" ? "PAID" : "FAILED",
+              providerPaymentId: String(
+                payload.iyziPaymentId ?? payload.paymentId ?? "",
+              ),
+              ...(payload.status === "SUCCESS" ? { paidAt: new Date() } : {}),
+            },
+          });
+          const transactionId = String(
+            payload.iyziPaymentId ?? payload.paymentId ?? eventId,
+          );
+          await tx.paymentTransaction.upsert({
+            where: {
+              provider_providerTransactionId: {
+                provider: "IYZICO",
+                providerTransactionId: transactionId,
+              },
+            },
+            create: {
+              userId: donation.userId,
+              provider: "IYZICO",
+              kind: "DONATION",
+              providerTransactionId: transactionId,
+              providerSessionId: donation.providerSessionId,
+              amount: donation.amount,
+              currency: donation.currency,
+              status: payload.status === "SUCCESS" ? "SUCCEEDED" : "FAILED",
+            },
+            update: {
+              status: payload.status === "SUCCESS" ? "SUCCEEDED" : "FAILED",
+              providerSessionId: donation.providerSessionId,
+            },
+          });
+        }
       }
+      await tx.paymentEvent.update({
+        where: { id: `IYZICO:${eventId}` },
+        data: { status: "PROCESSED", processedAt: new Date() },
+      });
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -201,6 +228,10 @@ export async function POST(request: Request) {
       if (isUniqueConstraintError(error)) {
         return NextResponse.json({ received: true, duplicate: true });
       }
+      const errorMessage =
+        error instanceof Error
+          ? error.message.slice(0, 500)
+          : "Unknown webhook processing error";
       await db.paymentEvent.upsert({
         where: { id: `STRIPE:${event.id}` },
         create: {
@@ -208,12 +239,13 @@ export async function POST(request: Request) {
           provider: "STRIPE",
           type: event.type,
           status: "FAILED",
-          errorMessage: "Webhook processing failed",
+          errorMessage,
           processedAt: new Date(),
         },
         update: {
           status: "FAILED",
-          errorMessage: "Webhook processing failed",
+          attempts: { increment: 1 },
+          errorMessage,
           processedAt: new Date(),
         },
       });

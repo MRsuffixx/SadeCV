@@ -46,8 +46,47 @@ export type IyzicoResult = {
     paymentId?: string;
     paymentStatus?: string;
     endDate?: number;
+    items?: IyzicoSubscriptionRecord[];
+    orders?: IyzicoSubscriptionOrder[];
   };
 };
+
+export type IyzicoSubscriptionOrder = {
+  referenceCode?: string;
+  price?: number;
+  currencyCode?: string;
+  startPeriod?: number;
+  endPeriod?: number;
+  orderStatus?: string;
+};
+
+export type IyzicoSubscriptionRecord = {
+  referenceCode?: string;
+  subscriptionReferenceCode?: string;
+  subscriptionStatus?: string;
+  customerReferenceCode?: string;
+  startDate?: number;
+  endDate?: number;
+  orders?: IyzicoSubscriptionOrder[];
+};
+
+export const IYZICO_SUBSCRIPTION_STATUSES = [
+  "ACTIVE",
+  "PENDING",
+  "UNPAID",
+  "UPGRADED",
+  "CANCELED",
+  "EXPIRED",
+] as const;
+
+export function parseIyzicoEpochDate(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  // iyzico documents subscription dates as Unix epoch milliseconds.
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 let iyzicoClient: Iyzipay | undefined;
 
@@ -236,6 +275,15 @@ export async function retrieveIyzicoSubscription(token: string) {
       { checkoutFormToken: token },
       callback,
     ),
+  );
+}
+
+export async function retrieveIyzicoSubscriptionDetails(
+  subscriptionReferenceCode: string,
+) {
+  const client = getIyzico();
+  return invoke((callback) =>
+    client.subscription.retrieve({ subscriptionReferenceCode }, callback),
   );
 }
 

@@ -258,13 +258,13 @@ export const billingRouter = createTRPCRouter({
           url: checkout.url,
         };
       } catch (error) {
-        await ctx.db.donation.deleteMany({
-          where: {
-            id: donation.id,
-            status: "PENDING",
-            providerSessionId: null,
-          },
+        console.error("Donation checkout initialization failed", {
+          donationId: donation.id,
+          provider: input.provider,
+          error: error instanceof Error ? error.message : "Unknown provider error",
         });
+        // Keep the PENDING row. Provider session creation can succeed even when
+        // the response is lost; a later signed webhook can still reconcile it.
         throw error;
       }
     }),

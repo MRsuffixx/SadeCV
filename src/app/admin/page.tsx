@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { formatCurrency } from "~/lib/format";
 import { api } from "~/trpc/server";
 
 const number = new Intl.NumberFormat("en-US");
@@ -20,13 +21,7 @@ export default async function AdminOverviewPage() {
   const data = await api.admin.overview();
   const revenue = data.kpis.revenueByCurrency.length
     ? data.kpis.revenueByCurrency
-        .map(({ amount, currency }) =>
-          new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency,
-            maximumFractionDigits: 0,
-          }).format(amount / 100),
-        )
+        .map(({ amount, currency }) => formatCurrency(amount, currency))
         .join(" · ")
     : "—";
   const cards = [
@@ -38,7 +33,7 @@ export default async function AdminOverviewPage() {
     },
     { label: "Resumes created", value: number.format(data.kpis.totalResumes), icon: FileText },
     {
-      label: "Revenue + donations",
+      label: "30-day revenue + donations",
       value: revenue,
       suffix: `${data.kpis.donationCount} donations`,
       icon: Banknote,

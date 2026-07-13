@@ -30,6 +30,9 @@ type ResumeItem = {
   updatedAt: Date;
 };
 
+const resumeDate = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+const resetDate = new Intl.DateTimeFormat("en", { dateStyle: "long" });
+
 export function ResumeGrid({
   initialResumes,
 }: {
@@ -155,9 +158,7 @@ export function ResumeGrid({
                   </h3>
                   <p className="mt-1 text-xs font-medium text-[#7d8581]">
                     Edited{" "}
-                    {new Intl.DateTimeFormat("en", {
-                      dateStyle: "medium",
-                    }).format(new Date(resume.updatedAt))}
+                    {resumeDate.format(new Date(resume.updatedAt))}
                   </p>
                 </div>
                 <button
@@ -202,6 +203,15 @@ export function ResumeGrid({
           </article>
         ))}
       </div>
+
+      {deleteResume.error ? (
+        <p
+          role="alert"
+          className="mt-4 rounded-xl border border-[#b9503c]/20 bg-[#fff0ec] px-4 py-3 text-sm font-semibold text-[#a33e2b]"
+        >
+          This CV could not be deleted. Please refresh and try again.
+        </p>
+      ) : null}
 
       {createOpen && (
         <div
@@ -322,9 +332,7 @@ export function ResumeGrid({
             {quota.data?.resetsAt && (
               <p className="relative mt-4 rounded-xl bg-[#eef2ee] px-4 py-3 text-xs font-bold text-[#52605a]">
                 Free creation renews on{" "}
-                {new Intl.DateTimeFormat("en", {
-                  dateStyle: "long",
-                }).format(new Date(quota.data.resetsAt))}
+                {resetDate.format(new Date(quota.data.resetsAt))}
               </p>
             )}
             <div className="relative mt-7 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

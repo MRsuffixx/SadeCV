@@ -2,7 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 
-import type { Prisma } from "../../../generated/prisma";
+import type { Prisma, PrismaClient } from "../../../generated/prisma";
 import { getStripe } from "~/server/payments/stripe";
 import { TEMPLATE_DEFINITIONS } from "~/templates/registry";
 
@@ -129,6 +129,7 @@ export async function processStripeEvent(
       data: {
         type: event.type,
         status: "PROCESSING",
+        attempts: { increment: 1 },
         errorMessage: null,
         processedAt: null,
       },
@@ -235,4 +236,55 @@ export async function processStripeEvent(
     where: { id: eventId },
     data: { status: "PROCESSED", processedAt: new Date() },
   });
+}
+
+export async function reconcileExpiredPlans(
+  db: PrismaClient,
+  now = new Date(),
+) {
+  const cutoff = new Date(now.getTime() - 15 * 60 * 1_000);
+  const stale = await db.subscription.findMany({
+    where: {
+      status: { in: ACTIVE_STATUSES },
+      currentPeriodEnd: { lte: cutoff },
+    },
+    select: { id: true, userId: true },
+    take: 500,
+  });
+  const userIds = [...new Set(stale.map((item) => item.userId))];
+
+  const result = await db.$transaction(async (tx) => {
+    const subscriptions = stale.length
+      ? await tx.subscription.updateMany({
+          where: { id: { in: stale.map((item) => item.id) } },
+          data: { status: "EXPIRED" },
+        })
+      : { count: 0 };
+    for (const userId of userIds) await recomputeUserPlan(tx, userId);
+
+    const abandonedDonations = await tx.donation.updateMany({
+      where: {
+        status: "PENDING",
+        createdAt: { lte: new Date(now.getTime() - 24 * 60 * 60 * 1_000) },
+      },
+      data: { status: "FAILED" },
+    });
+    const expiredCheckouts = await tx.paymentCheckout.updateMany({
+      where: { status: "PENDING", expiresAt: { lte: now } },
+      data: { status: "FAILED", consumedAt: now },
+    });
+    await tx.rateLimitBucket.deleteMany({
+      where: {
+        resetAt: { lte: new Date(now.getTime() - 24 * 60 * 60 * 1_000) },
+      },
+    });
+    return {
+      subscriptions: subscriptions.count,
+      users: userIds.length,
+      abandonedDonations: abandonedDonations.count,
+      expiredCheckouts: expiredCheckouts.count,
+    };
+  });
+
+  return result;
 }

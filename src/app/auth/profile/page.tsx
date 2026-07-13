@@ -26,6 +26,11 @@ export default async function ProfilePage() {
     where: { id: session.user.id },
     include: {
       accounts: { select: { provider: true } },
+      subscriptions: {
+        where: { status: { in: ["ACTIVE", "TRIALING"] } },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 1,
+      },
       _count: { select: { resumes: true } },
     },
   });
@@ -37,6 +42,7 @@ export default async function ProfilePage() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const subscription = user.subscriptions[0];
 
   return (
     <main className="min-h-screen bg-[#f2f3ee]">
@@ -127,6 +133,18 @@ export default async function ProfilePage() {
                   label="Email sign-in"
                   value={user.passwordHash ? "Enabled" : "Not configured"}
                 />
+                {subscription ? (
+                  <Status
+                    label="Subscription renewal"
+                    value={
+                      subscription.cancelAtPeriodEnd
+                        ? `Cancels ${subscription.currentPeriodEnd ? new Intl.DateTimeFormat(user.locale, { dateStyle: "medium" }).format(subscription.currentPeriodEnd) : "at period end"}`
+                        : subscription.currentPeriodEnd
+                          ? `Renews ${new Intl.DateTimeFormat(user.locale, { dateStyle: "medium" }).format(subscription.currentPeriodEnd)}`
+                          : "Active until canceled"
+                    }
+                  />
+                ) : null}
                 <Status
                   label="Google account"
                   value={

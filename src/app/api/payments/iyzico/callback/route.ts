@@ -5,6 +5,8 @@ import { env } from "~/env";
 import { db } from "~/server/db";
 import {
   iyzicoTokenHash,
+  IYZICO_SUBSCRIPTION_STATUSES,
+  parseIyzicoEpochDate,
   retrieveIyzicoDonation,
   retrieveIyzicoSubscription,
 } from "~/server/payments/iyzico";
@@ -13,28 +15,13 @@ import { recomputeUserPlan } from "~/server/payments/sync";
 export const runtime = "nodejs";
 
 const tokenSchema = z.string().trim().min(16).max(512);
-const subscriptionStatusSchema = z.enum([
-  "ACTIVE",
-  "PENDING",
-  "UNPAID",
-  "UPGRADED",
-  "CANCELED",
-  "EXPIRED",
-]);
+const subscriptionStatusSchema = z.enum(IYZICO_SUBSCRIPTION_STATUSES);
 
 function redirect(path: string) {
   return NextResponse.redirect(
     `${env.APP_DOMAIN.replace(/\/$/, "")}${path}`,
     303,
   );
-}
-
-function validEpochDate(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return null;
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export async function POST(request: Request) {
@@ -182,12 +169,12 @@ export async function POST(request: Request) {
         providerCustomerId: data.customerReferenceCode,
         providerSubscriptionId: subscriptionReferenceCode,
         status: subscriptionStatus,
-        currentPeriodEnd: validEpochDate(data.endDate),
+        currentPeriodEnd: parseIyzicoEpochDate(data.endDate),
       },
       update: {
         providerCustomerId: data.customerReferenceCode,
         status: subscriptionStatus,
-        currentPeriodEnd: validEpochDate(data.endDate),
+        currentPeriodEnd: parseIyzicoEpochDate(data.endDate),
       },
     });
     await tx.user.update({

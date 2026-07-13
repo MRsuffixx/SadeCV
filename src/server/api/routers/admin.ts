@@ -1,7 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import type { Prisma } from "../../../../generated/prisma";
+import type { Prisma, PrismaClient } from "../../../../generated/prisma";
+import { includesNormalizedSearch } from "~/lib/search";
 import {
   createTRPCRouter,
   protectedAdminProcedure,
@@ -60,6 +61,8 @@ async function assertNotLastAdmin(
 
 function auditData(input: {
   actorId: string;
+  actorEmail?: string;
+  actorName?: string | null;
   action: string;
   entityType: string;
   entityId?: string;
@@ -67,6 +70,8 @@ function auditData(input: {
 }) {
   return {
     actorId: input.actorId,
+    actorEmail: input.actorEmail,
+    actorName: input.actorName,
     action: input.action,
     entityType: input.entityType,
     entityId: input.entityId,
@@ -75,8 +80,73 @@ function auditData(input: {
   };
 }
 
+type AuditActor = { id: string; email: string; name: string | null };
+
+function auditError(error: unknown) {
+  if (error instanceof TRPCError) return `${error.code}: ${error.message}`.slice(0, 500);
+  if (error instanceof Error) return error.message.slice(0, 500);
+  return "Unknown administrator mutation failure";
+}
+
+async function auditedMutation<T>(
+  db: PrismaClient,
+  actor: AuditActor,
+  input: {
+    action: string;
+    entityType: string;
+    entityId?: string;
+    metadata?: unknown | ((result: T) => unknown);
+  },
+  operation: () => Promise<T>,
+) {
+  const initialMetadata =
+    typeof input.metadata === "function" ? undefined : input.metadata;
+  const audit = await db.adminAuditLog.create({
+    data: {
+      ...auditData({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        actorName: actor.name,
+        action: input.action,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        metadata: initialMetadata,
+      }),
+      status: "ATTEMPTED",
+    },
+  });
+
+  try {
+    const result = await operation();
+    const metadata =
+      typeof input.metadata === "function"
+        ? input.metadata(result)
+        : input.metadata;
+    await db.adminAuditLog.update({
+      where: { id: audit.id },
+      data: {
+        status: "SUCCEEDED",
+        errorMessage: null,
+        ...(metadata === undefined
+          ? {}
+          : { metadataJson: JSON.stringify(metadata) }),
+      },
+    });
+    return result;
+  } catch (error) {
+    await db.adminAuditLog
+      .update({
+        where: { id: audit.id },
+        data: { status: "FAILED", errorMessage: auditError(error) },
+      })
+      .catch(() => undefined);
+    throw error;
+  }
+}
+
 export const adminRouter = createTRPCRouter({
   overview: protectedAdminProcedure.query(async ({ ctx }) => {
+    const revenueSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1_000);
     const [
       totalUsers,
       activeSubscriptions,
@@ -94,13 +164,17 @@ export const adminRouter = createTRPCRouter({
       ctx.db.resume.count(),
       ctx.db.donation.groupBy({
         by: ["currency"],
-        where: { status: "PAID" },
+        where: { status: "PAID", paidAt: { gte: revenueSince } },
         _sum: { amount: true },
         _count: { _all: true },
       }),
       ctx.db.paymentTransaction.groupBy({
         by: ["currency"],
-        where: { kind: "SUBSCRIPTION", status: "SUCCEEDED" },
+        where: {
+          kind: "SUBSCRIPTION",
+          status: "SUCCEEDED",
+          occurredAt: { gte: revenueSince },
+        },
         _sum: { amount: true },
       }),
       ctx.db.user.findMany({
@@ -134,10 +208,10 @@ export const adminRouter = createTRPCRouter({
       );
     }
     for (const row of subscriptionRevenue) {
-      if (!row.currency) continue;
+      const currency = row.currency ?? "UNKNOWN";
       revenueByCurrency.set(
-        row.currency,
-        (revenueByCurrency.get(row.currency) ?? 0) + (row._sum.amount ?? 0),
+        currency,
+        (revenueByCurrency.get(currency) ?? 0) + (row._sum.amount ?? 0),
       );
     }
 
@@ -154,6 +228,7 @@ export const adminRouter = createTRPCRouter({
           (total, row) => total + row._count._all,
           0,
         ),
+        revenueSince,
       },
       recentUsers,
       recentSubscriptions,
@@ -171,15 +246,22 @@ export const adminRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const matchingIds = input.search
+        ? (
+            await ctx.db.user.findMany({
+              select: { id: true, name: true, email: true },
+            })
+          )
+            .filter((user) =>
+              includesNormalizedSearch(
+                [user.name, user.email],
+                input.search,
+              ),
+            )
+            .map((user) => user.id)
+        : null;
       const where: Prisma.UserWhereInput = {
-        ...(input.search
-          ? {
-              OR: [
-                { name: { contains: input.search } },
-                { email: { contains: input.search } },
-              ],
-            }
-          : {}),
+        ...(matchingIds ? { id: { in: matchingIds } } : {}),
         ...(input.role ? { role: input.role } : {}),
         ...(input.tier ? { tier: input.tier } : {}),
         ...(input.accountStatus === "BANNED"
@@ -256,27 +338,34 @@ export const adminRouter = createTRPCRouter({
       if (id === ctx.currentUser.id && data.role === "USER") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "SELF_DEMOTION_BLOCKED" });
       }
-      return ctx.db.$transaction(async (tx) => {
-        if (data.role === "USER") {
-          await acquireAdminMutationLock(tx);
-          await assertNotLastAdmin(tx, id);
-        }
-        const user = await tx.user.update({
-          where: { id },
-          data,
-          select: { id: true, name: true, email: true, role: true, adminNotes: true },
-        });
-        await tx.adminAuditLog.create({
-          data: auditData({
-            actorId: ctx.currentUser.id,
-            action: "USER_UPDATED",
-            entityType: "USER",
-            entityId: id,
-            metadata: { fields: Object.keys(data) },
+      return auditedMutation(
+        ctx.db,
+        ctx.currentUser,
+        {
+          action: "USER_UPDATED",
+          entityType: "USER",
+          entityId: id,
+          metadata: { fields: Object.keys(data) },
+        },
+        () =>
+          ctx.db.$transaction(async (tx) => {
+            if (data.role === "USER") {
+              await acquireAdminMutationLock(tx);
+              await assertNotLastAdmin(tx, id);
+            }
+            return tx.user.update({
+              where: { id },
+              data,
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                adminNotes: true,
+              },
+            });
           }),
-        });
-        return user;
-      });
+      );
     }),
 
   setPremium: protectedAdminProcedure
@@ -288,71 +377,77 @@ export const adminRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) =>
-      ctx.db.$transaction(async (tx) => {
-        const providerSubscriptionId = `admin:${input.userId}`;
-        if (input.enabled) {
-          await tx.subscription.upsert({
-            where: {
-              provider_providerSubscriptionId: {
-                provider: "ADMIN",
-                providerSubscriptionId,
-              },
-            },
-            create: {
-              userId: input.userId,
-              provider: "ADMIN",
-              providerSubscriptionId,
-              status: "ACTIVE",
-              currentPeriodEnd: input.expiresAt ?? null,
-            },
-            update: {
-              status: "ACTIVE",
-              currentPeriodEnd: input.expiresAt ?? null,
-            },
-          });
-        } else {
-          await tx.subscription.updateMany({
-            where: { provider: "ADMIN", providerSubscriptionId },
-            data: { status: "CANCELED", currentPeriodEnd: new Date() },
-          });
-        }
-        await recomputeUserPlan(tx, input.userId);
-        await tx.adminAuditLog.create({
-          data: auditData({
-            actorId: ctx.currentUser.id,
-            action: input.enabled ? "PREMIUM_GRANTED" : "PREMIUM_REVOKED",
-            entityType: "USER",
-            entityId: input.userId,
-            metadata: { expiresAt: input.expiresAt ?? null },
+      auditedMutation(
+        ctx.db,
+        ctx.currentUser,
+        {
+          action: input.enabled ? "PREMIUM_GRANTED" : "PREMIUM_REVOKED",
+          entityType: "USER",
+          entityId: input.userId,
+          metadata: { expiresAt: input.expiresAt ?? null },
+        },
+        () =>
+          ctx.db.$transaction(async (tx) => {
+            const providerSubscriptionId = `admin:${input.userId}`;
+            if (input.enabled) {
+              await tx.subscription.upsert({
+                where: {
+                  provider_providerSubscriptionId: {
+                    provider: "ADMIN",
+                    providerSubscriptionId,
+                  },
+                },
+                create: {
+                  userId: input.userId,
+                  provider: "ADMIN",
+                  providerSubscriptionId,
+                  status: "ACTIVE",
+                  currentPeriodEnd: input.expiresAt ?? null,
+                },
+                update: {
+                  status: "ACTIVE",
+                  currentPeriodEnd: input.expiresAt ?? null,
+                },
+              });
+            } else {
+              await tx.subscription.updateMany({
+                where: { provider: "ADMIN", providerSubscriptionId },
+                data: { status: "CANCELED", currentPeriodEnd: new Date() },
+              });
+            }
+            await recomputeUserPlan(tx, input.userId);
+            return { success: true };
           }),
-        });
-        return { success: true };
-      }),
+      ),
     ),
 
   resetQuota: protectedAdminProcedure
     .input(z.object({ userId: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {
       const period = getCalendarMonth();
-      return ctx.db.$transaction(async (tx) => {
-        const result = await tx.usageGrant.deleteMany({
-          where: {
-            userId: input.userId,
-            kind: "RESUME_CREATE",
-            periodKey: period.key,
-          },
-        });
-        await tx.adminAuditLog.create({
-          data: auditData({
-            actorId: ctx.currentUser.id,
-            action: "QUOTA_RESET",
-            entityType: "USER",
-            entityId: input.userId,
-            metadata: { period: period.key, deleted: result.count },
+      return auditedMutation(
+        ctx.db,
+        ctx.currentUser,
+        {
+          action: "QUOTA_RESET",
+          entityType: "USER",
+          entityId: input.userId,
+          metadata: (result: { success: true; deleted: number }) => ({
+            period: period.key,
+            deleted: result.deleted,
           }),
-        });
-        return { success: true, deleted: result.count };
-      });
+        },
+        async () => {
+          const result = await ctx.db.usageGrant.deleteMany({
+            where: {
+              userId: input.userId,
+              kind: "RESUME_CREATE",
+              periodKey: period.key,
+            },
+          });
+          return { success: true as const, deleted: result.count };
+        },
+      );
     }),
 
   setBan: protectedAdminProcedure
@@ -370,30 +465,32 @@ export const adminRouter = createTRPCRouter({
       if (input.banned && !input.reason) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "BAN_REASON_REQUIRED" });
       }
-      return ctx.db.$transaction(async (tx) => {
-        if (input.banned) {
-          await acquireAdminMutationLock(tx);
-          await assertNotLastAdmin(tx, input.userId);
-        }
-        await tx.user.update({
-          where: { id: input.userId },
-          data: {
-            bannedAt: input.banned ? new Date() : null,
-            banReason: input.banned ? input.reason : null,
-          },
-        });
-        await tx.session.deleteMany({ where: { userId: input.userId } });
-        await tx.adminAuditLog.create({
-          data: auditData({
-            actorId: ctx.currentUser.id,
-            action: input.banned ? "USER_BANNED" : "USER_UNBANNED",
-            entityType: "USER",
-            entityId: input.userId,
-            metadata: { reason: input.reason },
+      return auditedMutation(
+        ctx.db,
+        ctx.currentUser,
+        {
+          action: input.banned ? "USER_BANNED" : "USER_UNBANNED",
+          entityType: "USER",
+          entityId: input.userId,
+          metadata: { reason: input.reason },
+        },
+        () =>
+          ctx.db.$transaction(async (tx) => {
+            if (input.banned) {
+              await acquireAdminMutationLock(tx);
+              await assertNotLastAdmin(tx, input.userId);
+            }
+            await tx.user.update({
+              where: { id: input.userId },
+              data: {
+                bannedAt: input.banned ? new Date() : null,
+                banReason: input.banned ? input.reason : null,
+              },
+            });
+            await recomputeUserPlan(tx, input.userId);
+            return { success: true };
           }),
-        });
-        return { success: true };
-      });
+      );
     }),
 
   deleteUser: protectedAdminProcedure
@@ -402,56 +499,99 @@ export const adminRouter = createTRPCRouter({
       if (input.userId === ctx.currentUser.id) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "SELF_DELETE_BLOCKED" });
       }
-      return ctx.db.$transaction(async (tx) => {
-        await acquireAdminMutationLock(tx);
-        const target = await tx.user.findUnique({
-          where: { id: input.userId },
-          select: { email: true },
-        });
-        if (!target) throw new TRPCError({ code: "NOT_FOUND" });
-        if (target.email !== input.confirmationEmail.toLowerCase()) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "CONFIRMATION_MISMATCH" });
-        }
-        await assertNotLastAdmin(tx, input.userId);
-        await tx.adminAuditLog.create({
-          data: auditData({
-            actorId: ctx.currentUser.id,
-            action: "USER_DELETED",
-            entityType: "USER",
-            entityId: input.userId,
-            metadata: { email: target.email },
-          }),
-        });
-        await tx.user.delete({ where: { id: input.userId } });
-        return { success: true };
+      const target = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        select: { email: true },
       });
+      if (!target) throw new TRPCError({ code: "NOT_FOUND" });
+      if (target.email !== input.confirmationEmail.toLowerCase()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "CONFIRMATION_MISMATCH",
+        });
+      }
+      return auditedMutation(
+        ctx.db,
+        ctx.currentUser,
+        {
+          action: "USER_DELETED",
+          entityType: "USER",
+          entityId: input.userId,
+          metadata: { email: target.email },
+        },
+        () =>
+          ctx.db.$transaction(async (tx) => {
+            await acquireAdminMutationLock(tx);
+            await assertNotLastAdmin(tx, input.userId);
+            await tx.user.delete({ where: { id: input.userId } });
+            return { success: true };
+          }),
+      );
     }),
 
   finance: protectedAdminProcedure
-    .input(z.object({ take: z.number().int().min(10).max(100).default(50) }))
+    .input(paginationSchema)
     .query(async ({ ctx, input }) => {
-      const [transactions, donations, subscriptions, webhooks] = await Promise.all([
+      const skip = (input.page - 1) * input.pageSize;
+      const [
+        transactions,
+        transactionCount,
+        donations,
+        donationCount,
+        subscriptions,
+        subscriptionCount,
+        webhooks,
+        webhookCount,
+      ] = await Promise.all([
         ctx.db.paymentTransaction.findMany({
           orderBy: { occurredAt: "desc" },
-          take: input.take,
+          skip,
+          take: input.pageSize,
           include: { user: { select: { id: true, name: true, email: true } } },
         }),
+        ctx.db.paymentTransaction.count(),
         ctx.db.donation.findMany({
           orderBy: { createdAt: "desc" },
-          take: input.take,
+          skip,
+          take: input.pageSize,
           include: { user: { select: { id: true, name: true, email: true } } },
         }),
+        ctx.db.donation.count(),
         ctx.db.subscription.findMany({
           orderBy: { updatedAt: "desc" },
-          take: input.take,
+          skip,
+          take: input.pageSize,
           include: { user: { select: { id: true, name: true, email: true } } },
         }),
+        ctx.db.subscription.count(),
         ctx.db.paymentEvent.findMany({
           orderBy: { createdAt: "desc" },
-          take: input.take,
+          skip,
+          take: input.pageSize,
         }),
+        ctx.db.paymentEvent.count(),
       ]);
-      return { transactions, donations, subscriptions, webhooks };
+      const totals = {
+        transactions: transactionCount,
+        donations: donationCount,
+        subscriptions: subscriptionCount,
+        webhooks: webhookCount,
+      };
+      return {
+        transactions,
+        donations,
+        subscriptions,
+        webhooks,
+        totals,
+        page: input.page,
+        pageSize: input.pageSize,
+        pageCount: Math.max(
+          1,
+          ...Object.values(totals).map((total) =>
+            Math.ceil(total / input.pageSize),
+          ),
+        ),
+      };
     }),
 
   resumes: protectedAdminProcedure
@@ -463,15 +603,26 @@ export const adminRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const matchingIds = input.search
+        ? (
+            await ctx.db.resume.findMany({
+              select: {
+                id: true,
+                title: true,
+                user: { select: { email: true } },
+              },
+            })
+          )
+            .filter((resume) =>
+              includesNormalizedSearch(
+                [resume.title, resume.user.email],
+                input.search,
+              ),
+            )
+            .map((resume) => resume.id)
+        : null;
       const where: Prisma.ResumeWhereInput = {
-        ...(input.search
-          ? {
-              OR: [
-                { title: { contains: input.search } },
-                { user: { email: { contains: input.search } } },
-              ],
-            }
-          : {}),
+        ...(matchingIds ? { id: { in: matchingIds } } : {}),
         ...(input.template ? { template: input.template } : {}),
         ...(input.status ? { status: input.status } : {}),
       };
@@ -507,29 +658,33 @@ export const adminRouter = createTRPCRouter({
     .input(
       z.object({ resumeId: z.string().cuid(), confirmationTitle: z.string().trim() }),
     )
-    .mutation(async ({ ctx, input }) =>
-      ctx.db.$transaction(async (tx) => {
-        const resume = await tx.resume.findUnique({
-          where: { id: input.resumeId },
-          select: { id: true, title: true, userId: true },
+    .mutation(async ({ ctx, input }) => {
+      const resume = await ctx.db.resume.findUnique({
+        where: { id: input.resumeId },
+        select: { id: true, title: true, userId: true },
+      });
+      if (!resume) throw new TRPCError({ code: "NOT_FOUND" });
+      if (resume.title !== input.confirmationTitle) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "CONFIRMATION_MISMATCH",
         });
-        if (!resume) throw new TRPCError({ code: "NOT_FOUND" });
-        if (resume.title !== input.confirmationTitle) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "CONFIRMATION_MISMATCH" });
-        }
-        await tx.resume.delete({ where: { id: resume.id } });
-        await tx.adminAuditLog.create({
-          data: auditData({
-            actorId: ctx.currentUser.id,
-            action: "RESUME_DELETED",
-            entityType: "RESUME",
-            entityId: resume.id,
-            metadata: { title: resume.title, userId: resume.userId },
-          }),
-        });
-        return { success: true };
-      }),
-    ),
+      }
+      return auditedMutation(
+        ctx.db,
+        ctx.currentUser,
+        {
+          action: "RESUME_DELETED",
+          entityType: "RESUME",
+          entityId: resume.id,
+          metadata: { title: resume.title, userId: resume.userId },
+        },
+        async () => {
+          await ctx.db.resume.delete({ where: { id: resume.id } });
+          return { success: true };
+        },
+      );
+    }),
 
   settings: protectedAdminProcedure.query(({ ctx }) => listFeatureFlags(ctx.db)),
 
@@ -537,28 +692,29 @@ export const adminRouter = createTRPCRouter({
     .input(z.object({ key: featureFlagKeySchema, enabled: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const defaults = FEATURE_FLAGS[input.key];
-      const flag = await ctx.db.$transaction(async (tx) => {
-        const updated = await tx.featureFlag.upsert({
-          where: { key: input.key },
-          create: {
-            key: input.key,
-            enabled: input.enabled,
-            description: defaults.description,
-            updatedById: ctx.currentUser.id,
-          },
-          update: { enabled: input.enabled, updatedById: ctx.currentUser.id },
-        });
-        await tx.adminAuditLog.create({
-          data: auditData({
-            actorId: ctx.currentUser.id,
-            action: "FEATURE_FLAG_UPDATED",
-            entityType: "FEATURE_FLAG",
-            entityId: input.key,
-            metadata: { enabled: input.enabled },
+      return auditedMutation(
+        ctx.db,
+        ctx.currentUser,
+        {
+          action: "FEATURE_FLAG_UPDATED",
+          entityType: "FEATURE_FLAG",
+          entityId: input.key,
+          metadata: { enabled: input.enabled },
+        },
+        () =>
+          ctx.db.featureFlag.upsert({
+            where: { key: input.key },
+            create: {
+              key: input.key,
+              enabled: input.enabled,
+              description: defaults.description,
+              updatedById: ctx.currentUser.id,
+            },
+            update: {
+              enabled: input.enabled,
+              updatedById: ctx.currentUser.id,
+            },
           }),
-        });
-        return updated;
-      });
-      return flag;
+      );
     }),
 });

@@ -52,7 +52,10 @@ function lines(...values: Array<string | undefined>) {
 export function formatResumeDate(value: string) {
   if (!value) return "";
   const [year, month] = value.split("-");
-  return [month, year].filter(Boolean).join("/");
+  const numericMonth = Number(month);
+  return year && month && numericMonth >= 1 && numericMonth <= 12
+    ? `${month}/${year}`
+    : value;
 }
 
 export function formatResumePeriod(

@@ -113,7 +113,7 @@ export async function POST(
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${safeFilename(input.data.title)}.pdf"`,
+        "Content-Disposition": `attachment; filename="${safeFilename(input.data.title)}-${resumeId.slice(-8)}.pdf"`,
         "Cache-Control": "private, no-store, max-age=0",
         "X-Content-Type-Options": "nosniff",
       },
