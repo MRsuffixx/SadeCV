@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import type {
   PresentationContact,
@@ -264,7 +264,7 @@ export function SkillItem({
             style={{
               width: `${item.progress}%`,
               ...(inverse ? {} : { backgroundColor: presentation.theme.accentColor }),
-            } as CSSProperties}
+            }}
           />
         </div>
       ) : null}

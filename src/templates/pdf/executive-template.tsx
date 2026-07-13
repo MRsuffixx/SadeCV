@@ -27,6 +27,8 @@ export function ExecutivePdfTemplate({ presentation }: { presentation: ResumePre
         <View style={[styles.header, { backgroundColor: presentation.theme.accentColor }]}>
           <View style={styles.headerRow}>
             <View><Text style={[styles.overline, { fontFamily: theme.heading }]}>Executive profile</Text><Text style={[styles.name, { fontFamily: theme.heading }]}>{presentation.identity.name}</Text><Text style={[styles.title, { fontFamily: theme.heading }]}>{presentation.identity.professionalTitle}</Text></View>
+            {/* React PDF images are decorative here and do not expose DOM alt text. */}
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             {showPhoto ? <Image src={presentation.identity.avatarUrl} style={styles.avatar} /> : null}
           </View>
           <View style={styles.contacts}><PdfContactList items={[...presentation.contact, ...presentation.links]} presentation={presentation} inverse /></View>

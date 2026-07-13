@@ -162,9 +162,7 @@ export const resumeRouter = createTRPCRouter({
 
       if (guardedData.status === "READY") {
         let contentToValidate = content;
-        if (!contentToValidate) {
-          contentToValidate = parseResumeContent(existing.contentJson);
-        }
+        contentToValidate ??= parseResumeContent(existing.contentJson);
         const validation = resumeContentSchema.safeParse(contentToValidate);
         if (!validation.success) {
           throw new TRPCError({

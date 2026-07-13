@@ -60,10 +60,8 @@ export async function POST(
     return Response.json({ error: "PDF_GENERATION_DISABLED" }, { status: 503 });
   }
 
-  const [{ resumeId }, body] = await Promise.all([
-    context.params,
-    request.json().catch(() => null),
-  ]);
+  const { resumeId } = await context.params;
+  const body: unknown = await request.json().catch(() => null);
   const input = exportSchema.safeParse(body);
   if (!input.success) {
     return Response.json(
