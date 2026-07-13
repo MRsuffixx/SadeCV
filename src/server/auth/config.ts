@@ -86,6 +86,7 @@ if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
 export const authConfig = {
   providers,
   adapter: PrismaAdapter(db),
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/auth/login",

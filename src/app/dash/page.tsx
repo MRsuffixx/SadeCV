@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { ResumeGrid } from "~/app/dash/_components/resume-grid";
+import { auth } from "~/server/auth";
 import { api } from "~/trpc/server";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/auth/login");
+
   const resumes = await api.resume.list();
 
   return (

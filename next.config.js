@@ -25,6 +25,7 @@ const contentSecurityPolicy = [
 const config = {
   poweredByHeader: false,
   reactStrictMode: true,
+  serverExternalPackages: ["iyzipay"],
   async headers() {
     return [
       {
