@@ -498,6 +498,7 @@ export type ResumeArraySection = keyof ResumeArrayItemMap;
 
 export type ResumeRecord = {
   id: string;
+  updatedAt: string | Date;
   title: string;
   template: string;
   accentColor: string;

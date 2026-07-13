@@ -235,7 +235,7 @@ model AdminAuditLog {
   errorMessage String?
   metadataJson String?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime @default(now()) @updatedAt
   actor        User?    @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])

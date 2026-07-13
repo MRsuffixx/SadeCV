@@ -28,12 +28,10 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
-  interface JWT {
-    authRefreshedAt?: number;
-    locale?: "en" | "tr";
-  }
-}
+type SadeJwtClaims = {
+  authRefreshedAt?: number;
+  locale?: "en" | "tr";
+};
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -107,20 +105,21 @@ export const authConfig = {
     signIn: ({ account, profile }) =>
       account?.provider !== "google" || profile?.email_verified === true,
     jwt: async ({ token, user, trigger }) => {
+      const claims = token as typeof token & SadeJwtClaims;
       if (user) {
         token.id = user.id;
         token.tier = "tier" in user ? String(user.tier) : "FREE";
         token.role =
           "role" in user && user.role === "ADMIN" ? "ADMIN" : "USER";
         token.banned = "bannedAt" in user && Boolean(user.bannedAt);
-        token.locale =
+        claims.locale =
           "locale" in user && user.locale === "tr" ? "tr" : "en";
-        token.authRefreshedAt = Date.now();
+        claims.authRefreshedAt = Date.now();
       } else if (
         typeof token.id === "string" &&
         (trigger === "update" ||
-          !token.authRefreshedAt ||
-          Date.now() - token.authRefreshedAt > 5 * 60 * 1_000)
+          !claims.authRefreshedAt ||
+          Date.now() - claims.authRefreshedAt > 5 * 60 * 1_000)
       ) {
         const currentUser = await db.user.findUnique({
           where: { id: token.id },
@@ -129,8 +128,8 @@ export const authConfig = {
         token.tier = currentUser?.tier ?? "FREE";
         token.role = currentUser?.role === "ADMIN" ? "ADMIN" : "USER";
         token.banned = !currentUser || Boolean(currentUser.bannedAt);
-        token.locale = currentUser?.locale === "tr" ? "tr" : "en";
-        token.authRefreshedAt = Date.now();
+        claims.locale = currentUser?.locale === "tr" ? "tr" : "en";
+        claims.authRefreshedAt = Date.now();
       }
       return token;
     },
@@ -142,7 +141,10 @@ export const authConfig = {
         tier: typeof token.tier === "string" ? token.tier : "FREE",
         role: token.role === "ADMIN" ? "ADMIN" : "USER",
         banned: Boolean(token.banned),
-        locale: token.locale === "tr" ? "tr" : "en",
+        locale:
+          (token as typeof token & SadeJwtClaims).locale === "tr"
+            ? "tr"
+            : "en",
       },
     }),
   },
