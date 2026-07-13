@@ -34,7 +34,7 @@ export const resumeThemeSchema = z.object({
   spacing: resumeSpacingSchema,
   showIcons: z.boolean(),
   showProfilePhoto: z.boolean(),
-});
+}).strict();
 
 export const resumeTemplateDefinitionSchema = z.object({
   id: resumeTemplateIdSchema,

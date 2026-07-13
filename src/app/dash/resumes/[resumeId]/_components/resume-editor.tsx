@@ -14,7 +14,11 @@ import { useEffect, useState } from "react";
 import { ResumeEditorPanels } from "~/app/dash/resumes/[resumeId]/_components/resume-editor-panels";
 import { ResumePreview } from "~/app/dash/resumes/[resumeId]/_components/resume-preview";
 import { useResumeStore } from "~/app/dash/resumes/[resumeId]/_store/resume-store";
-import { isResumeReady, type ResumeRecord } from "~/lib/resume-model";
+import {
+  isResumeReady,
+  resumeDraftContentSchema,
+  type ResumeRecord,
+} from "~/lib/resume-model";
 import { getTemplateDefinition } from "~/templates/registry";
 import { api } from "~/trpc/react";
 
@@ -22,12 +26,37 @@ export function ResumeEditor({ resume }: { resume: ResumeRecord }) {
   const activeResumeId = useResumeStore((state) => state.resumeId);
   const hydrate = useResumeStore((state) => state.hydrate);
 
-  useEffect(() => hydrate(resume), [hydrate, resume]);
+  const hydrationError = useResumeStore((state) => state.hydrationError);
+
+  useEffect(() => {
+    const state = useResumeStore.getState();
+    if (state.resumeId !== resume.id || state.saved) hydrate(resume);
+  }, [hydrate, resume]);
 
   if (activeResumeId !== resume.id) {
     return (
       <main className="grid min-h-[calc(100vh-72px)] place-items-center bg-[#e8ebe6]">
         <LoaderCircle className="animate-spin text-[#277b67]" size={28} />
+      </main>
+    );
+  }
+
+  if (hydrationError) {
+    return (
+      <main className="grid min-h-[calc(100vh-72px)] place-items-center bg-[#e8ebe6] px-6">
+        <section className="max-w-lg rounded-[1.5rem] border border-[#b64632]/20 bg-white p-8 text-center shadow-xl">
+          <h1 className="font-serif text-3xl text-[#123f35]">
+            This CV needs recovery.
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-[#66706b]">
+            Its stored content could not be validated, so editing has been
+            locked to prevent accidental data loss. Contact an administrator
+            to restore a previous version.
+          </p>
+          <Link href="/dash" className="button-primary mt-6">
+            <ArrowLeft size={16} /> Back to dashboard
+          </Link>
+        </section>
       </main>
     );
   }
@@ -45,26 +74,41 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
   const setTitle = useResumeStore((state) => state.setTitle);
   const setPublic = useResumeStore((state) => state.setPublic);
   const markSaved = useResumeStore((state) => state.markSaved);
+  const [saveError, setSaveError] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const { data: entitlement } = api.billing.entitlements.useQuery();
   const { data: systemStatus } = api.system.status.useQuery();
-  const mutation = api.resume.update.useMutation({ onSuccess: markSaved });
+  const mutation = api.resume.update.useMutation();
   const isPremium = entitlement?.isPremium ?? false;
   const premiumLocked =
     getTemplateDefinition(selectedTemplateId).isPremium && !isPremium;
 
   const save = () => {
     const state = useResumeStore.getState();
+    const parsedContent = resumeDraftContentSchema.safeParse(state.content);
+    if (!parsedContent.success) {
+      const issue = parsedContent.error.issues[0];
+      const field = issue?.path.length ? `${issue.path.join(" ")}: ` : "";
+      setSaveError(
+        `${field}${issue?.message ?? "Check the highlighted CV fields."}`,
+      );
+      return;
+    }
+    setSaveError("");
     mutation.mutate({
       id: resumeId,
       title: state.title,
       template: state.selectedTemplateId,
       theme: state.theme,
       isPublic: premiumLocked ? false : state.isPublic,
-      content: state.content,
+      content: parsedContent.data,
       status:
-        !premiumLocked && isResumeReady(state.content) ? "READY" : "DRAFT",
+        !premiumLocked && isResumeReady(parsedContent.data)
+          ? "READY"
+          : "DRAFT",
+    }, {
+      onSuccess: () => markSaved(parsedContent.data),
     });
   };
 
@@ -202,12 +246,14 @@ function HydratedResumeEditor({ resumeId }: { resumeId: string }) {
             </button>
           </div>
         </div>
-        {mutation.error || exportError ? (
+        {mutation.error || exportError || saveError ? (
           <p
             role="alert"
             className="mx-auto mt-2 max-w-[1580px] text-xs font-bold text-[#b64632]"
           >
-            {exportError || "We couldn’t save these changes. Please try again."}
+            {exportError ||
+              saveError ||
+              "We couldn’t save these changes. Please try again."}
           </p>
         ) : null}
       </div>

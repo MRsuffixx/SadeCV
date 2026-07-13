@@ -27,9 +27,14 @@ async function checkValkey(
     valkeyClientPromise ??= createValkeyClient();
     const client = await valkeyClientPromise;
     const namespacedKey = `sadecv:limit:${key}`;
-    const count = await client.incr(namespacedKey);
-    if (count === 1) await client.expire(namespacedKey, windowSeconds);
-    return count <= limit;
+    const count = await client.eval(
+      "local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]); end; return count;",
+      {
+        keys: [namespacedKey],
+        arguments: [String(windowSeconds)],
+      },
+    );
+    return Number(count) <= limit;
   } catch {
     valkeyClientPromise = undefined;
     return null;

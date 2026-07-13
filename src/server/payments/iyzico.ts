@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import Iyzipay from "iyzipay";
 
 import { env } from "~/env";
@@ -26,17 +28,24 @@ export type IyzicoResult = {
   checkoutFormContent?: string;
   paymentId?: string;
   paymentStatus?: string;
+  referenceCode?: string;
   subscriptionReferenceCode?: string;
+  subscriptionStatus?: string;
   customerReferenceCode?: string;
+  tokenExpireTime?: number;
+  endDate?: number;
   data?: {
     status?: string;
     token?: string;
     paymentPageUrl?: string;
     checkoutFormContent?: string;
+    referenceCode?: string;
     subscriptionReferenceCode?: string;
+    subscriptionStatus?: string;
     customerReferenceCode?: string;
     paymentId?: string;
     paymentStatus?: string;
+    endDate?: number;
   };
 };
 
@@ -67,6 +76,15 @@ export function getIyzico() {
     uri: env.IYZICO_BASE_URL,
   });
   return iyzicoClient;
+}
+
+export function iyzicoTokenHash(token: string) {
+  return createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+function checkoutExpiry(seconds?: number) {
+  const lifetime = Math.min(3_600, Math.max(300, seconds ?? 1_800));
+  return new Date(Date.now() + lifetime * 1_000);
 }
 
 function invoke(
@@ -120,7 +138,7 @@ export async function createIyzicoSubscriptionCheckout(input: {
       {
         locale: "en",
         conversationId: input.userId,
-        callbackUrl: `${origin}/api/payments/iyzico/callback?kind=subscription&reference=${input.userId}`,
+        callbackUrl: `${origin}/api/payments/iyzico/callback`,
         pricingPlanReferenceCode: env.IYZICO_PREMIUM_PLAN_REFERENCE_CODE,
         subscriptionInitialStatus: "ACTIVE",
         customer: customer(input.profile),
@@ -136,6 +154,7 @@ export async function createIyzicoSubscriptionCheckout(input: {
     url: data.paymentPageUrl ?? response.paymentPageUrl ?? null,
     checkoutFormContent:
       data.checkoutFormContent ?? response.checkoutFormContent ?? null,
+    expiresAt: checkoutExpiry(response.tokenExpireTime),
   };
 }
 
@@ -179,7 +198,7 @@ export async function createIyzicoDonationCheckout(input: {
         currency: "TRY",
         basketId: input.donationId,
         paymentGroup: "PRODUCT",
-        callbackUrl: `${origin}/api/payments/iyzico/callback?kind=donation&reference=${input.donationId}`,
+        callbackUrl: `${origin}/api/payments/iyzico/callback`,
         enabledInstallments: [1],
         buyer,
         shippingAddress: address,
@@ -197,10 +216,17 @@ export async function createIyzicoDonationCheckout(input: {
       callback,
     ),
   );
-  if (!response.token || !response.paymentPageUrl) {
+  const data = response.data ?? response;
+  const token = data.token ?? response.token;
+  const url = data.paymentPageUrl ?? response.paymentPageUrl;
+  if (!token || !url) {
     throw new Error("iyzico did not return a hosted checkout URL.");
   }
-  return { token: response.token, url: response.paymentPageUrl };
+  return {
+    token,
+    url,
+    expiresAt: checkoutExpiry(response.tokenExpireTime),
+  };
 }
 
 export async function retrieveIyzicoSubscription(token: string) {

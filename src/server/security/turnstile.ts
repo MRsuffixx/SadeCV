@@ -10,7 +10,11 @@ export async function verifyTurnstile(
   token: string,
   remoteIp?: string,
 ): Promise<boolean> {
-  if (env.NODE_ENV !== "production" && token === "development-bypass") {
+  const appHostname = new URL(env.APP_DOMAIN).hostname;
+  const localDevelopment =
+    env.NODE_ENV === "development" &&
+    ["localhost", "127.0.0.1", "::1"].includes(appHostname);
+  if (localDevelopment && token === "development-bypass") {
     return true;
   }
 
@@ -23,7 +27,7 @@ export async function verifyTurnstile(
     response: token,
   });
 
-  if (remoteIp) body.set("remoteip", remoteIp);
+  if (remoteIp && remoteIp !== "unknown") body.set("remoteip", remoteIp);
 
   try {
     const response = await fetch(

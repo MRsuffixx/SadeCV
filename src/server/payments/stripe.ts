@@ -71,29 +71,33 @@ export async function createStripeDonationCheckout(input: {
     donationId: input.donationId,
     ...(input.userId ? { userId: input.userId } : {}),
   };
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    submit_type: "donate",
-    customer_email: input.email,
-    client_reference_id: input.userId ?? input.donationId,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: input.currency.toLowerCase(),
-          unit_amount: input.amount,
-          product_data: {
-            name: "Support SadeCV",
-            description: "A one-time contribution to independent development.",
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "payment",
+      submit_type: "donate",
+      customer_email: input.email,
+      client_reference_id: input.userId ?? input.donationId,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: input.currency.toLowerCase(),
+            unit_amount: input.amount,
+            product_data: {
+              name: "Support SadeCV",
+              description:
+                "A one-time contribution to independent development.",
+            },
           },
         },
-      },
-    ],
-    success_url: `${origin}/support/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/support?checkout=cancelled`,
-    metadata,
-    payment_intent_data: { metadata },
-  });
+      ],
+      success_url: `${origin}/support/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/support?checkout=cancelled`,
+      metadata,
+      payment_intent_data: { metadata },
+    },
+    { idempotencyKey: `donation:${input.donationId}` },
+  );
   if (!session.url) throw new Error("Stripe did not return a checkout URL.");
   return { url: session.url, sessionId: session.id };
 }

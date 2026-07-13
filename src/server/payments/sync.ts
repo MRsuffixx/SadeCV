@@ -4,17 +4,36 @@ import type Stripe from "stripe";
 
 import type { Prisma } from "../../../generated/prisma";
 import { getStripe } from "~/server/payments/stripe";
+import { TEMPLATE_DEFINITIONS } from "~/templates/registry";
 
 const ACTIVE_STATUSES = ["ACTIVE", "TRIALING"];
+const PREMIUM_TEMPLATE_IDS = TEMPLATE_DEFINITIONS.filter(
+  (template) => template.isPremium,
+).map((template) => template.id);
 
 export async function recomputeUserPlan(
   tx: Prisma.TransactionClient,
   userId: string,
 ) {
-  const active = await tx.subscription.findFirst({
-    where: { userId, status: { in: ACTIVE_STATUSES } },
-    orderBy: { updatedAt: "desc" },
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    select: { bannedAt: true },
   });
+  if (!user) return;
+
+  const active = user.bannedAt
+    ? null
+    : await tx.subscription.findFirst({
+        where: {
+          userId,
+          status: { in: ACTIVE_STATUSES },
+          OR: [
+            { currentPeriodEnd: null },
+            { currentPeriodEnd: { gt: new Date() } },
+          ],
+        },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      });
   await tx.user.update({
     where: { id: userId },
     data: active
@@ -23,8 +42,18 @@ export async function recomputeUserPlan(
           tierStatus: active.status,
           tierExpiresAt: active.currentPeriodEnd,
         }
-      : { tier: "FREE", tierStatus: "ACTIVE", tierExpiresAt: null },
+      : { tier: "FREE", tierStatus: "INACTIVE", tierExpiresAt: null },
   });
+  if (!active) {
+    await tx.resume.updateMany({
+      where: {
+        userId,
+        template: { in: PREMIUM_TEMPLATE_IDS },
+        isPublic: true,
+      },
+      data: { isPublic: false, status: "DRAFT" },
+    });
+  }
 }
 
 function stripePeriodEnd(subscription: Stripe.Subscription) {
@@ -51,7 +80,7 @@ export async function syncStripeSubscription(
   const status = subscription.status.toUpperCase();
   const customerId = stripeCustomerId(subscription);
 
-  await tx.subscription.upsert({
+  const storedSubscription = await tx.subscription.upsert({
     where: {
       provider_providerSubscriptionId: {
         provider: "STRIPE",
@@ -68,7 +97,6 @@ export async function syncStripeSubscription(
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
     },
     update: {
-      userId,
       providerCustomerId: customerId,
       status,
       currentPeriodEnd: stripePeriodEnd(subscription),
@@ -76,28 +104,45 @@ export async function syncStripeSubscription(
     },
   });
   await tx.user.update({
-    where: { id: userId },
+    where: { id: storedSubscription.userId },
     data: {
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscription.id,
     },
   });
-  await recomputeUserPlan(tx, userId);
+  await recomputeUserPlan(tx, storedSubscription.userId);
 }
 
 export async function processStripeEvent(
   tx: Prisma.TransactionClient,
   event: Stripe.Event,
 ) {
-  await tx.paymentEvent.create({
-    data: {
-      id: `STRIPE:${event.id}`,
-      provider: "STRIPE",
-      type: event.type,
-      status: event.type.includes("failed") ? "FAILED" : "PROCESSED",
-      processedAt: new Date(),
-    },
+  const eventId = `STRIPE:${event.id}`;
+  const existingEvent = await tx.paymentEvent.findUnique({
+    where: { id: eventId },
+    select: { status: true },
   });
+  if (existingEvent?.status === "PROCESSED") return;
+  if (existingEvent) {
+    await tx.paymentEvent.update({
+      where: { id: eventId },
+      data: {
+        type: event.type,
+        status: "PROCESSING",
+        errorMessage: null,
+        processedAt: null,
+      },
+    });
+  } else {
+    await tx.paymentEvent.create({
+      data: {
+        id: eventId,
+        provider: "STRIPE",
+        type: event.type,
+        status: "PROCESSING",
+      },
+    });
+  }
 
   if (
     event.type === "customer.subscription.created" ||
@@ -105,14 +150,13 @@ export async function processStripeEvent(
     event.type === "customer.subscription.deleted"
   ) {
     await syncStripeSubscription(tx, event.data.object);
-    return;
-  }
-
-  if (
+  } else if (
     event.type === "checkout.session.completed" ||
-    event.type === "checkout.session.async_payment_succeeded"
+    event.type === "checkout.session.async_payment_succeeded" ||
+    event.type === "checkout.session.async_payment_failed"
   ) {
     const session = event.data.object;
+    const failed = event.type === "checkout.session.async_payment_failed";
     const kind = session.metadata?.kind?.toUpperCase() ?? "CHECKOUT";
     const transactionId =
       typeof session.payment_intent === "string"
@@ -134,17 +178,29 @@ export async function processStripeEvent(
         providerSessionId: session.id,
         amount: session.amount_total,
         currency: session.currency?.toUpperCase(),
-        status: session.payment_status === "paid" ? "SUCCEEDED" : "PENDING",
+        status: failed
+          ? "FAILED"
+          : session.payment_status === "paid"
+            ? "SUCCEEDED"
+            : "PENDING",
       },
       update: {
         providerSessionId: session.id,
-        amount: session.amount_total,
-        currency: session.currency?.toUpperCase(),
-        status: session.payment_status === "paid" ? "SUCCEEDED" : "PENDING",
+        status: failed
+          ? "FAILED"
+          : session.payment_status === "paid"
+            ? "SUCCEEDED"
+            : "PENDING",
       },
     });
     if (session.metadata?.kind === "donation") {
       const donationId = session.metadata.donationId;
+      if (donationId && failed) {
+        await tx.donation.updateMany({
+          where: { id: donationId, status: { not: "PAID" } },
+          data: { status: "FAILED", providerSessionId: session.id },
+        });
+      }
       if (donationId && session.payment_status === "paid") {
         await tx.donation.updateMany({
           where: { id: donationId, status: { not: "PAID" } },
@@ -160,10 +216,7 @@ export async function processStripeEvent(
           },
         });
       }
-      return;
-    }
-
-    if (
+    } else if (
       session.metadata?.kind === "subscription" &&
       typeof session.subscription === "string"
     ) {
@@ -177,4 +230,9 @@ export async function processStripeEvent(
       );
     }
   }
+
+  await tx.paymentEvent.update({
+    where: { id: eventId },
+    data: { status: "PROCESSED", processedAt: new Date() },
+  });
 }

@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+import {
+  isAllowedResumeImageUrl,
+  normalizeHttpUrl,
+} from "~/lib/remote-assets";
+
 export {
   resumeTemplateIdSchema as resumeTemplateSchema,
   type ResumeTemplate,
@@ -14,10 +19,37 @@ const emailValue = z
   .union([z.literal(""), z.string().trim().email().max(254)])
   .default("");
 const urlValue = z
-  .union([z.literal(""), z.string().trim().url().max(2_048)])
+  .string()
+  .trim()
+  .max(2_048)
+  .transform((value, ctx) => {
+    const normalized = normalizeHttpUrl(value);
+    if (normalized === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a valid web address, such as example.com.",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  })
   .default("");
+const trustedImageUrlValue = urlValue.refine(isAllowedResumeImageUrl, {
+  message: "Profile images must be uploaded through SadeCV.",
+});
 const dateValue = z
-  .union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)])
+  .string()
+  .refine((value) => {
+    if (!value) return true;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(Date.UTC(year ?? 0, (month ?? 0) - 1, day));
+    return (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === (month ?? 0) - 1 &&
+      parsed.getUTCDate() === day
+    );
+  }, "Enter a valid calendar date.")
   .default("");
 
 export const employmentTypeSchema = z.enum([
@@ -67,7 +99,7 @@ const socialsSchema = z.object({
 });
 
 export const personalInformationDraftSchema = z.object({
-  avatarUrl: urlValue,
+  avatarUrl: trustedImageUrlValue,
   firstName: shortText(100),
   lastName: shortText(100),
   email: emailValue,
@@ -740,11 +772,18 @@ function mergeCurrentContent(raw: Record<string, unknown>): unknown {
   };
 }
 
+export class ResumeContentParseError extends Error {
+  constructor() {
+    super("Stored resume content is invalid.");
+    this.name = "ResumeContentParseError";
+  }
+}
+
 export function parseResumeContent(value: string): ResumeContent {
   try {
     const raw = JSON.parse(value) as unknown;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-      return createEmptyResumeContent();
+      throw new ResumeContentParseError();
     }
     const record = raw as Record<string, unknown>;
     const candidate =
@@ -752,9 +791,11 @@ export function parseResumeContent(value: string): ResumeContent {
         ? migrateLegacyContent(record)
         : mergeCurrentContent(record);
     const parsed = resumeDraftContentSchema.safeParse(candidate);
-    return parsed.success ? parsed.data : createEmptyResumeContent();
-  } catch {
-    return createEmptyResumeContent();
+    if (!parsed.success) throw new ResumeContentParseError();
+    return parsed.data;
+  } catch (error) {
+    if (error instanceof ResumeContentParseError) throw error;
+    throw new ResumeContentParseError();
   }
 }
 

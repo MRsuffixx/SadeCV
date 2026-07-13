@@ -28,6 +28,7 @@ type ResumeState = {
   isPublic: boolean;
   content: ResumeContent;
   saved: boolean;
+  hydrationError: string | null;
   hydrate: (resume: ResumeRecord) => void;
   setTitle: (value: string) => void;
   setTemplate: (value: ResumeTemplate) => void;
@@ -58,7 +59,7 @@ type ResumeState = {
     id: string,
     direction: -1 | 1,
   ) => void;
-  markSaved: () => void;
+  markSaved: (content?: ResumeContent) => void;
 };
 
 type AnyResumeItem = ResumeArrayItemMap[ResumeArraySection];
@@ -93,16 +94,33 @@ export const useResumeStore = create<ResumeState>()((set) => ({
   isPublic: false,
   content: createEmptyResumeContent(),
   saved: true,
-  hydrate: (resume) =>
-    set({
-      resumeId: resume.id,
-      title: resume.title,
-      selectedTemplateId: resume.template as ResumeTemplate,
-      theme: parseResumeTheme(resume.themeJson, resume.accentColor),
-      isPublic: resume.isPublic,
-      content: parseResumeContent(resume.contentJson),
-      saved: true,
-    }),
+  hydrationError: null,
+  hydrate: (resume) => {
+    try {
+      const content = parseResumeContent(resume.contentJson);
+      set({
+        resumeId: resume.id,
+        title: resume.title,
+        selectedTemplateId: resume.template as ResumeTemplate,
+        theme: parseResumeTheme(resume.themeJson, resume.accentColor),
+        isPublic: resume.isPublic,
+        content,
+        saved: true,
+        hydrationError: null,
+      });
+    } catch {
+      set({
+        resumeId: resume.id,
+        title: resume.title,
+        selectedTemplateId: resume.template as ResumeTemplate,
+        theme: parseResumeTheme(resume.themeJson, resume.accentColor),
+        isPublic: false,
+        content: createEmptyResumeContent(),
+        saved: true,
+        hydrationError: "STORED_RESUME_CONTENT_INVALID",
+      });
+    }
+  },
   setTitle: (title) => set({ title, saved: false }),
   setTemplate: (selectedTemplateId) =>
     set({ selectedTemplateId, saved: false }),
@@ -192,5 +210,6 @@ export const useResumeStore = create<ResumeState>()((set) => ({
         saved: false,
       };
     }),
-  markSaved: () => set({ saved: true }),
+  markSaved: (content) =>
+    set((state) => ({ saved: true, content: content ?? state.content })),
 }));

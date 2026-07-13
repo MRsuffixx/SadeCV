@@ -4,6 +4,7 @@ import { z } from "zod";
 import { env } from "~/env";
 import { db } from "~/server/db";
 import {
+  iyzicoTokenHash,
   retrieveIyzicoDonation,
   retrieveIyzicoSubscription,
 } from "~/server/payments/iyzico";
@@ -11,44 +12,94 @@ import { recomputeUserPlan } from "~/server/payments/sync";
 
 export const runtime = "nodejs";
 
-const callbackQuerySchema = z.object({
-  kind: z.enum(["subscription", "donation"]),
-  reference: z.string().cuid(),
-});
+const tokenSchema = z.string().trim().min(16).max(512);
+const subscriptionStatusSchema = z.enum([
+  "ACTIVE",
+  "PENDING",
+  "UNPAID",
+  "UPGRADED",
+  "CANCELED",
+  "EXPIRED",
+]);
+
+function redirect(path: string) {
+  return NextResponse.redirect(
+    `${env.APP_DOMAIN.replace(/\/$/, "")}${path}`,
+    303,
+  );
+}
+
+function validEpochDate(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 export async function POST(request: Request) {
-  const url = new URL(request.url);
-  const query = callbackQuerySchema.safeParse({
-    kind: url.searchParams.get("kind"),
-    reference: url.searchParams.get("reference"),
-  });
-  if (!query.success) {
-    return NextResponse.json({ error: "Invalid callback" }, { status: 400 });
-  }
   const formData = await request.formData();
-  const token = z.string().min(1).safeParse(formData.get("token"));
+  const token = tokenSchema.safeParse(formData.get("token"));
   if (!token.success) {
     return NextResponse.json({ error: "Missing token" }, { status: 400 });
   }
-  const origin = env.APP_DOMAIN.replace(/\/$/, "");
 
-  if (query.data.kind === "donation") {
+  const tokenHash = iyzicoTokenHash(token.data);
+  const checkout = await db.paymentCheckout.findUnique({
+    where: { tokenHash },
+  });
+  if (
+    !checkout ||
+    checkout.provider !== "IYZICO" ||
+    checkout.consumedAt ||
+    checkout.status !== "PENDING" ||
+    checkout.expiresAt <= new Date()
+  ) {
+    return NextResponse.json(
+      { error: "Unknown or expired checkout" },
+      { status: 400 },
+    );
+  }
+
+  if (checkout.kind === "DONATION") {
     const result = await retrieveIyzicoDonation(
       token.data,
-      query.data.reference,
+      checkout.referenceId,
     );
+    if (result.conversationId && result.conversationId !== checkout.referenceId) {
+      return NextResponse.json(
+        { error: "Checkout correlation failed" },
+        { status: 400 },
+      );
+    }
     const data = result.data ?? result;
     const paid = data.paymentStatus === "SUCCESS";
+
     await db.$transaction(async (tx) => {
-      const donation = await tx.donation.findUnique({
-        where: { id: query.data.reference },
+      const claimed = await tx.paymentCheckout.updateMany({
+        where: {
+          id: checkout.id,
+          status: "PENDING",
+          consumedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          status: paid ? "COMPLETED" : "FAILED",
+          consumedAt: new Date(),
+        },
       });
-      if (!donation) return;
+      if (!claimed.count) throw new Error("IYZICO_CALLBACK_ALREADY_CONSUMED");
+
+      const donation = await tx.donation.findUnique({
+        where: { id: checkout.referenceId },
+      });
+      if (!donation || donation.provider !== "IYZICO") {
+        throw new Error("IYZICO_DONATION_CORRELATION_FAILED");
+      }
       await tx.donation.update({
         where: { id: donation.id },
         data: {
           status: paid ? "PAID" : "FAILED",
-          providerSessionId: token.data,
           providerPaymentId: data.paymentId,
           ...(paid ? { paidAt: new Date() } : {}),
         },
@@ -57,38 +108,67 @@ export async function POST(request: Request) {
         where: {
           provider_providerTransactionId: {
             provider: "IYZICO",
-            providerTransactionId: data.paymentId ?? token.data,
+            providerTransactionId: data.paymentId ?? checkout.id,
           },
         },
         create: {
           userId: donation.userId,
           provider: "IYZICO",
           kind: "DONATION",
-          providerTransactionId: data.paymentId ?? token.data,
-          providerSessionId: token.data,
+          providerTransactionId: data.paymentId ?? checkout.id,
+          providerSessionId: checkout.id,
           amount: donation.amount,
           currency: donation.currency,
           status: paid ? "SUCCEEDED" : "FAILED",
         },
         update: {
           status: paid ? "SUCCEEDED" : "FAILED",
-          providerSessionId: token.data,
+          providerSessionId: checkout.id,
         },
       });
     });
-    return NextResponse.redirect(
-      `${origin}/support/${paid ? "success" : "?checkout=failed"}`,
-      303,
-    );
+
+    return redirect(paid ? "/support/success" : "/support?checkout=failed");
+  }
+
+  if (checkout.kind !== "SUBSCRIPTION") {
+    return NextResponse.json({ error: "Invalid checkout kind" }, { status: 400 });
   }
 
   const result = await retrieveIyzicoSubscription(token.data);
-  const data = result.data ?? result;
-  const subscriptionReferenceCode = data.subscriptionReferenceCode;
-  if (!subscriptionReferenceCode) {
-    return NextResponse.redirect(`${origin}/pricing?checkout=failed`, 303);
+  if (result.conversationId && result.conversationId !== checkout.referenceId) {
+    return NextResponse.json(
+      { error: "Checkout correlation failed" },
+      { status: 400 },
+    );
   }
+  const data = result.data ?? result;
+  const subscriptionReferenceCode =
+    data.referenceCode ?? data.subscriptionReferenceCode;
+  const parsedStatus = subscriptionStatusSchema.safeParse(
+    data.subscriptionStatus?.toUpperCase(),
+  );
+  if (!subscriptionReferenceCode || !parsedStatus.success) {
+    return redirect("/pricing?checkout=failed");
+  }
+
+  const subscriptionStatus = parsedStatus.data;
+  const active = subscriptionStatus === "ACTIVE";
   await db.$transaction(async (tx) => {
+    const claimed = await tx.paymentCheckout.updateMany({
+      where: {
+        id: checkout.id,
+        status: "PENDING",
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: {
+        status: active ? "COMPLETED" : "FAILED",
+        consumedAt: new Date(),
+      },
+    });
+    if (!claimed.count) throw new Error("IYZICO_CALLBACK_ALREADY_CONSUMED");
+
     await tx.subscription.upsert({
       where: {
         provider_providerSubscriptionId: {
@@ -97,25 +177,27 @@ export async function POST(request: Request) {
         },
       },
       create: {
-        userId: query.data.reference,
+        userId: checkout.referenceId,
         provider: "IYZICO",
         providerCustomerId: data.customerReferenceCode,
         providerSubscriptionId: subscriptionReferenceCode,
-        status: "ACTIVE",
+        status: subscriptionStatus,
+        currentPeriodEnd: validEpochDate(data.endDate),
       },
       update: {
         providerCustomerId: data.customerReferenceCode,
-        status: "ACTIVE",
+        status: subscriptionStatus,
+        currentPeriodEnd: validEpochDate(data.endDate),
       },
     });
     await tx.user.update({
-      where: { id: query.data.reference },
+      where: { id: checkout.referenceId },
       data: {
         iyzicoCustomerReferenceCode: data.customerReferenceCode,
         iyzicoSubscriptionReferenceCode: subscriptionReferenceCode,
       },
     });
-    await recomputeUserPlan(tx, query.data.reference);
+    await recomputeUserPlan(tx, checkout.referenceId);
     await tx.paymentTransaction.upsert({
       where: {
         provider_providerTransactionId: {
@@ -124,18 +206,21 @@ export async function POST(request: Request) {
         },
       },
       create: {
-        userId: query.data.reference,
+        userId: checkout.referenceId,
         provider: "IYZICO",
         kind: "SUBSCRIPTION",
         providerTransactionId: subscriptionReferenceCode,
-        providerSessionId: token.data,
-        status: "SUCCEEDED",
+        providerSessionId: checkout.id,
+        status: active ? "SUCCEEDED" : "FAILED",
       },
-      update: { status: "SUCCEEDED", providerSessionId: token.data },
+      update: {
+        status: active ? "SUCCEEDED" : "FAILED",
+        providerSessionId: checkout.id,
+      },
     });
   });
-  return NextResponse.redirect(
-    `${origin}/pricing/success?provider=iyzico`,
-    303,
+
+  return redirect(
+    active ? "/pricing/success?provider=iyzico" : "/pricing?checkout=failed",
   );
 }

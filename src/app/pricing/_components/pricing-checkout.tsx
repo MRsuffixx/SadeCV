@@ -7,6 +7,7 @@ import {
   Crown,
   LoaderCircle,
   Sparkles,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -37,12 +38,46 @@ function billingProfile(formData: FormData) {
   };
 }
 
-function renderIyzicoCheckout(content: string) {
-  document.open();
-  document.write(
-    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Secure iyzico checkout</title><style>body{margin:0;padding:32px;background:#f5f5f0;font-family:Arial,sans-serif}#iyzipay-checkout-form{max-width:760px;margin:auto}</style></head><body><div id="iyzipay-checkout-form" class="responsive"></div>${content}</body></html>`,
+function IyzicoCheckoutModal({
+  content,
+  onClose,
+}: {
+  content: string;
+  onClose: () => void;
+}) {
+  const source = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://*.iyzipay.com https://*.iyzico.com; style-src 'unsafe-inline' https://*.iyzipay.com https://*.iyzico.com; img-src data: https://*.iyzipay.com https://*.iyzico.com; connect-src https://*.iyzipay.com https://*.iyzico.com; frame-src https://*.iyzipay.com https://*.iyzico.com; form-action https://*.iyzipay.com https://*.iyzico.com"><title>Secure iyzico checkout</title><style>body{margin:0;padding:20px;background:#f5f5f0;font-family:Arial,sans-serif}#iyzipay-checkout-form{max-width:760px;margin:auto}</style></head><body><div id="iyzipay-checkout-form" class="responsive"></div>${content}</body></html>`;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Secure iyzico checkout"
+      className="fixed inset-0 z-50 grid bg-[#102c25]/70 p-3 backdrop-blur-sm sm:p-8"
+    >
+      <div className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-[1.5rem] bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
+          <div>
+            <p className="font-extrabold text-[#123f35]">Secure checkout</p>
+            <p className="text-xs text-[#78817d]">Processed by iyzico</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close checkout"
+            className="grid size-10 place-items-center rounded-full bg-[#eef1ed] text-[#51605a]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <iframe
+          title="iyzico secure checkout"
+          srcDoc={source}
+          sandbox="allow-forms allow-scripts allow-popups allow-top-navigation-by-user-activation"
+          className="min-h-0 flex-1 border-0"
+        />
+      </div>
+    </div>
   );
-  document.close();
 }
 
 export function PricingCheckout({
@@ -54,12 +89,13 @@ export function PricingCheckout({
 }) {
   const [provider, setProvider] = useState<Provider>("STRIPE");
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [iyzicoCheckoutContent, setIyzicoCheckoutContent] = useState("");
   const { data: providers } = api.billing.providers.useQuery();
   const checkout = api.billing.createSubscriptionCheckout.useMutation({
     onSuccess: (result) => {
       if (result.url) window.location.assign(result.url);
       else if (result.checkoutFormContent)
-        renderIyzicoCheckout(result.checkoutFormContent);
+        setIyzicoCheckoutContent(result.checkoutFormContent);
     },
   });
   const enabled =
@@ -68,7 +104,14 @@ export function PricingCheckout({
       : providers?.subscription.iyzico;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <>
+      {iyzicoCheckoutContent ? (
+        <IyzicoCheckoutModal
+          content={iyzicoCheckoutContent}
+          onClose={() => setIyzicoCheckoutContent("")}
+        />
+      ) : null}
+      <div className="grid gap-6 lg:grid-cols-2">
       <article className="rounded-[1.8rem] border border-black/[0.08] bg-white p-7 shadow-[0_18px_60px_rgba(18,63,53,0.06)] sm:p-9">
         <p className="text-xs font-black tracking-[0.14em] text-[#6e7873] uppercase">
           Free
@@ -208,6 +251,7 @@ export function PricingCheckout({
           )}
         </div>
       </article>
-    </div>
+      </div>
+    </>
   );
 }

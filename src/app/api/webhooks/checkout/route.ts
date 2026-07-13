@@ -80,7 +80,12 @@ function verifyIyzicoWebhook(payload: IyzicoWebhook, signature: string) {
 }
 
 async function handleIyzico(rawBody: string, signature: string) {
-  const payload = JSON.parse(rawBody) as IyzicoWebhook;
+  let payload: IyzicoWebhook;
+  try {
+    payload = JSON.parse(rawBody) as IyzicoWebhook;
+  } catch {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
   if (!verifyIyzicoWebhook(payload, signature)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
@@ -97,7 +102,7 @@ async function handleIyzico(rawBody: string, signature: string) {
           provider: "IYZICO",
           type: eventType,
           payloadHash: createHash("sha256").update(rawBody).digest("hex"),
-          status: eventType.includes("fail") ? "FAILED" : "PROCESSED",
+          status: "PROCESSED",
           processedAt: new Date(),
         },
       });
@@ -117,7 +122,30 @@ async function handleIyzico(rawBody: string, signature: string) {
         await tx.subscription.update({
           where: { id: existing.id },
           data: {
-            status: eventType.endsWith(".success") ? "ACTIVE" : "PAST_DUE",
+            status: eventType.endsWith(".success") ? "ACTIVE" : "UNPAID",
+          },
+        });
+        await tx.paymentTransaction.upsert({
+          where: {
+            provider_providerTransactionId: {
+              provider: "IYZICO",
+              providerTransactionId:
+                payload.orderReferenceCode ?? eventId,
+            },
+          },
+          create: {
+            userId: existing.userId,
+            provider: "IYZICO",
+            kind: "SUBSCRIPTION",
+            providerTransactionId: payload.orderReferenceCode ?? eventId,
+            status: eventType.endsWith(".success")
+              ? "SUCCEEDED"
+              : "FAILED",
+          },
+          update: {
+            status: eventType.endsWith(".success")
+              ? "SUCCEEDED"
+              : "FAILED",
           },
         });
         await recomputeUserPlan(tx, existing.userId);
@@ -127,7 +155,7 @@ async function handleIyzico(rawBody: string, signature: string) {
       const donationId = payload.paymentConversationId;
       if (donationId) {
         await tx.donation.updateMany({
-          where: { id: donationId },
+          where: { id: donationId, provider: "IYZICO" },
           data: {
             status: payload.status === "SUCCESS" ? "PAID" : "FAILED",
             providerPaymentId: String(

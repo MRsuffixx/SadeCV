@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { Prisma } from "../../../generated/prisma";
 import { db } from "~/server/db";
 import { signIn } from "~/server/auth";
 import { rateLimit } from "~/server/security/rate-limit";
@@ -99,7 +100,13 @@ export async function registerAction(
         passwordHash,
       },
     });
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { error: "An account already exists for this email." };
+    }
     return { error: "We couldn't create your account. Please try again." };
   }
 

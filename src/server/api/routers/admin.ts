@@ -26,6 +26,22 @@ const paginationSchema = z.object({
   pageSize: z.number().int().min(10).max(100).default(20),
 });
 
+const ADMIN_MUTATION_LOCK_KEY = "__ADMIN_RBAC_MUTEX__";
+
+async function acquireAdminMutationLock(db: Prisma.TransactionClient) {
+  await db.featureFlag.upsert({
+    where: { key: ADMIN_MUTATION_LOCK_KEY },
+    create: {
+      key: ADMIN_MUTATION_LOCK_KEY,
+      enabled: true,
+      description: "Internal lock for serialized administrator mutations.",
+    },
+    update: {
+      description: "Internal lock for serialized administrator mutations.",
+    },
+  });
+}
+
 async function assertNotLastAdmin(
   db: Prisma.TransactionClient,
   userId: string,
@@ -241,7 +257,10 @@ export const adminRouter = createTRPCRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "SELF_DEMOTION_BLOCKED" });
       }
       return ctx.db.$transaction(async (tx) => {
-        if (data.role === "USER") await assertNotLastAdmin(tx, id);
+        if (data.role === "USER") {
+          await acquireAdminMutationLock(tx);
+          await assertNotLastAdmin(tx, id);
+        }
         const user = await tx.user.update({
           where: { id },
           data,
@@ -352,7 +371,10 @@ export const adminRouter = createTRPCRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "BAN_REASON_REQUIRED" });
       }
       return ctx.db.$transaction(async (tx) => {
-        if (input.banned) await assertNotLastAdmin(tx, input.userId);
+        if (input.banned) {
+          await acquireAdminMutationLock(tx);
+          await assertNotLastAdmin(tx, input.userId);
+        }
         await tx.user.update({
           where: { id: input.userId },
           data: {
@@ -381,6 +403,7 @@ export const adminRouter = createTRPCRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "SELF_DELETE_BLOCKED" });
       }
       return ctx.db.$transaction(async (tx) => {
+        await acquireAdminMutationLock(tx);
         const target = await tx.user.findUnique({
           where: { id: input.userId },
           select: { email: true },

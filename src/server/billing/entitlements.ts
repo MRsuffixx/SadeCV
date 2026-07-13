@@ -10,6 +10,13 @@ export const PREMIUM_TEMPLATES = new Set(
 
 type DatabaseClient = PrismaClient | Prisma.TransactionClient;
 
+export class ResumeQuotaExceededError extends Error {
+  constructor() {
+    super("RESUME_QUOTA_EXCEEDED");
+    this.name = "ResumeQuotaExceededError";
+  }
+}
+
 export function getCalendarMonth(date = new Date()) {
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth();
@@ -79,6 +86,16 @@ export async function consumeResumeGrant(
   if (hasPremiumAccess(user, now)) return;
 
   const period = getCalendarMonth(now);
+  const used = await db.usageGrant.count({
+    where: {
+      userId,
+      kind: "RESUME_CREATE",
+      periodKey: period.key,
+    },
+  });
+  if (used >= FREE_MONTHLY_RESUME_LIMIT) {
+    throw new ResumeQuotaExceededError();
+  }
   await db.usageGrant.create({
     data: {
       userId,

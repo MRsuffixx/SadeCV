@@ -3,12 +3,12 @@ import { type NextRequest } from "next/server";
 import { createElement } from "react";
 import { z } from "zod";
 
-import { env } from "~/env";
 import { resumeDraftContentSchema } from "~/lib/resume-model";
 import { auth } from "~/server/auth";
 import { hasPremiumAccess } from "~/server/billing/entitlements";
 import { db } from "~/server/db";
 import { rateLimit } from "~/server/security/rate-limit";
+import { hasTrustedOrigin } from "~/server/security/origin";
 import { isFeatureEnabled } from "~/server/system/feature-flags";
 import { ResumePdfDocument } from "~/templates/pdf/resume-pdf-document";
 import { isPremiumTemplate } from "~/templates/registry";
@@ -44,8 +44,7 @@ export async function POST(
   if (!session?.user?.id) {
     return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(env.APP_DOMAIN).origin) {
+  if (!hasTrustedOrigin(request.headers)) {
     return Response.json({ error: "UNTRUSTED_ORIGIN" }, { status: 403 });
   }
   if (
@@ -99,16 +98,24 @@ export async function POST(
     );
   }
 
-  const document = createElement(ResumePdfDocument, {
-    data: input.data,
-  }) as unknown as Parameters<typeof renderToBuffer>[0];
-  const buffer = await renderToBuffer(document);
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${safeFilename(input.data.title)}.pdf"`,
-      "Cache-Control": "private, no-store, max-age=0",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
+  try {
+    const document = createElement(ResumePdfDocument, {
+      data: input.data,
+    }) as unknown as Parameters<typeof renderToBuffer>[0];
+    const buffer = await renderToBuffer(document);
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${safeFilename(input.data.title)}.pdf"`,
+        "Cache-Control": "private, no-store, max-age=0",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error("PDF rendering failed", {
+      resumeId,
+      error: error instanceof Error ? error.message : "Unknown renderer error",
+    });
+    return Response.json({ error: "PDF_RENDER_FAILED" }, { status: 422 });
+  }
 }

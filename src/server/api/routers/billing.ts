@@ -1,7 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { env } from "~/env";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -13,6 +12,7 @@ import {
   createIyzicoSubscriptionCheckout,
   isIyzicoConfigured,
   isIyzicoDonationConfigured,
+  iyzicoTokenHash,
 } from "~/server/payments/iyzico";
 import {
   createStripeDonationCheckout,
@@ -21,6 +21,7 @@ import {
   isStripeSubscriptionConfigured,
 } from "~/server/payments/stripe";
 import { rateLimit } from "~/server/security/rate-limit";
+import { assertTrustedOrigin } from "~/server/security/origin";
 import { getClientIp, verifyTurnstile } from "~/server/security/turnstile";
 
 const providerSchema = z.enum(["STRIPE", "IYZICO"]);
@@ -42,21 +43,6 @@ const billingProfileSchema = z.object({
   country: z.string().trim().min(2).max(80).default("Türkiye"),
   zipCode: z.string().trim().min(3).max(12),
 });
-
-function clientAddress(headers: Headers) {
-  return (
-    headers.get("cf-connecting-ip") ??
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
-}
-
-function assertTrustedOrigin(headers: Headers) {
-  const origin = headers.get("origin");
-  if (origin && new URL(origin).origin !== new URL(env.APP_DOMAIN).origin) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "UNTRUSTED_ORIGIN" });
-  }
-}
 
 export const billingRouter = createTRPCRouter({
   providers: publicProcedure.query(() => ({
@@ -145,6 +131,15 @@ export const billingRouter = createTRPCRouter({
         userId: user.id,
         profile: input.billingProfile,
       });
+      await ctx.db.paymentCheckout.create({
+        data: {
+          provider: "IYZICO",
+          kind: "SUBSCRIPTION",
+          tokenHash: iyzicoTokenHash(checkout.token),
+          referenceId: user.id,
+          expiresAt: checkout.expiresAt,
+        },
+      });
       return {
         provider: input.provider,
         sessionId: checkout.token,
@@ -165,7 +160,7 @@ export const billingRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       assertTrustedOrigin(ctx.headers);
-      const ip = clientAddress(ctx.headers);
+      const ip = getClientIp(ctx.headers);
       const allowed = await rateLimit(`donation:${ip}`, {
         limit: 10,
         windowSeconds: 600,
@@ -184,6 +179,21 @@ export const billingRouter = createTRPCRouter({
         });
       }
 
+      if (input.provider === "STRIPE" && !isStripeDonationConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED" });
+      }
+      if (input.provider === "IYZICO") {
+        if (!isIyzicoDonationConfigured()) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED" });
+        }
+        if (!input.billingProfile) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "IYZICO_BILLING_PROFILE_REQUIRED",
+          });
+        }
+      }
+
       const donation = await ctx.db.donation.create({
         data: {
           userId: ctx.session?.user?.id,
@@ -196,9 +206,6 @@ export const billingRouter = createTRPCRouter({
 
       try {
         if (input.provider === "STRIPE") {
-          if (!isStripeDonationConfigured()) {
-            throw new TRPCError({ code: "PRECONDITION_FAILED" });
-          }
           const checkout = await createStripeDonationCheckout({
             donationId: donation.id,
             userId: ctx.session?.user?.id,
@@ -213,34 +220,40 @@ export const billingRouter = createTRPCRouter({
           return { provider: input.provider, ...checkout };
         }
 
-        if (!isIyzicoDonationConfigured()) {
-          throw new TRPCError({ code: "PRECONDITION_FAILED" });
-        }
-        if (!input.billingProfile) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "IYZICO_BILLING_PROFILE_REQUIRED",
-          });
-        }
         const checkout = await createIyzicoDonationCheckout({
           donationId: donation.id,
           amount: input.amount,
           ip,
-          profile: input.billingProfile,
+          profile: input.billingProfile!,
         });
-        await ctx.db.donation.update({
-          where: { id: donation.id },
-          data: { providerSessionId: checkout.token },
+        const correlation = await ctx.db.$transaction(async (tx) => {
+          const paymentCheckout = await tx.paymentCheckout.create({
+            data: {
+              provider: "IYZICO",
+              kind: "DONATION",
+              tokenHash: iyzicoTokenHash(checkout.token),
+              referenceId: donation.id,
+              expiresAt: checkout.expiresAt,
+            },
+          });
+          await tx.donation.update({
+            where: { id: donation.id },
+            data: { providerSessionId: paymentCheckout.id },
+          });
+          return paymentCheckout;
         });
         return {
           provider: input.provider,
-          sessionId: checkout.token,
+          sessionId: correlation.id,
           url: checkout.url,
         };
       } catch (error) {
-        await ctx.db.donation.update({
-          where: { id: donation.id },
-          data: { status: "FAILED" },
+        await ctx.db.donation.deleteMany({
+          where: {
+            id: donation.id,
+            status: "PENDING",
+            providerSessionId: null,
+          },
         });
         throw error;
       }

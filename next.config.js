@@ -13,7 +13,7 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.ufs.sh https://utfs.io https://*.iyzipay.com https://*.iyzico.com",
   "font-src 'self' data:",
   "connect-src 'self' https://challenges.cloudflare.com https://*.ufs.sh https://*.ingest.uploadthing.com https://uploadthing.com https://*.iyzipay.com https://*.iyzico.com",
-  "frame-src https://challenges.cloudflare.com https://*.iyzipay.com https://*.iyzico.com https://checkout.stripe.com",
+  "frame-src 'self' blob: https://challenges.cloudflare.com https://*.iyzipay.com https://*.iyzico.com https://checkout.stripe.com",
   "form-action 'self' https://*.iyzipay.com https://*.iyzico.com https://checkout.stripe.com",
   "base-uri 'self'",
   "object-src 'none'",

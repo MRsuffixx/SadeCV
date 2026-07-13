@@ -7,6 +7,7 @@ import { Prisma } from "../../../../generated/prisma";
 import {
   createEmptyResumeContent,
   parseResumeContent,
+  ResumeContentParseError,
   RESUME_SCHEMA_VERSION,
   resumeContentSchema,
   resumeDraftContentSchema,
@@ -19,6 +20,7 @@ import {
   getResumeEntitlement,
   hasPremiumAccess,
   PREMIUM_TEMPLATES,
+  ResumeQuotaExceededError,
 } from "~/server/billing/entitlements";
 
 const resumeSelect = {
@@ -101,8 +103,9 @@ export const resumeRouter = createTRPCRouter({
         });
       } catch (error) {
         if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
+          error instanceof ResumeQuotaExceededError ||
+          (error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002")
         ) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -131,69 +134,100 @@ export const resumeRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, content, theme, ...data } = input;
-      const [existing, user] = await Promise.all([
-        ctx.db.resume.findFirst({
-          where: { id, userId: ctx.session.user.id },
-          select: { template: true, contentJson: true },
-        }),
-        ctx.db.user.findUniqueOrThrow({
-          where: { id: ctx.session.user.id },
-          select: { tier: true, tierStatus: true, tierExpiresAt: true },
-        }),
-      ]);
-      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
-      const targetTemplate = resumeTemplateSchema.parse(
-        data.template ?? existing.template,
-      );
-      const premiumPreviewOnly =
-        PREMIUM_TEMPLATES.has(targetTemplate) && !hasPremiumAccess(user);
-      if (
-        premiumPreviewOnly &&
-        (data.status === "READY" || data.isPublic === true)
-      ) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "PREMIUM_TEMPLATE_REQUIRED",
-        });
-      }
-      const guardedData = premiumPreviewOnly
-        ? { ...data, status: "DRAFT" as const, isPublic: false }
-        : data;
+      return ctx.db.$transaction(async (tx) => {
+        const [existing, user] = await Promise.all([
+          tx.resume.findFirst({
+            where: { id, userId: ctx.session.user.id },
+            select: {
+              template: true,
+              contentJson: true,
+              contentSchemaVersion: true,
+            },
+          }),
+          tx.user.findUniqueOrThrow({
+            where: { id: ctx.session.user.id },
+            select: { tier: true, tierStatus: true, tierExpiresAt: true },
+          }),
+        ]);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
 
-      if (guardedData.status === "READY") {
-        let contentToValidate = content;
-        contentToValidate ??= parseResumeContent(existing.contentJson);
-        const validation = resumeContentSchema.safeParse(contentToValidate);
-        if (!validation.success) {
+        const targetTemplate = resumeTemplateSchema.parse(
+          data.template ?? existing.template,
+        );
+        const premiumPreviewOnly =
+          PREMIUM_TEMPLATES.has(targetTemplate) && !hasPremiumAccess(user);
+        if (
+          premiumPreviewOnly &&
+          (data.status === "READY" || data.isPublic === true)
+        ) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "RESUME_VALIDATION_FAILED",
-            cause: validation.error,
+            code: "FORBIDDEN",
+            message: "PREMIUM_TEMPLATE_REQUIRED",
           });
         }
-      }
+        const guardedData = premiumPreviewOnly
+          ? { ...data, status: "DRAFT" as const, isPublic: false }
+          : data;
 
-      const result = await ctx.db.resume.updateMany({
-        where: { id, userId: ctx.session.user.id },
-        data: {
-          ...guardedData,
-          ...(theme
-            ? {
-                accentColor: theme.accentColor,
-                themeJson: JSON.stringify(theme),
+        if (guardedData.status === "READY") {
+          let contentToValidate = content;
+          if (!contentToValidate) {
+            try {
+              contentToValidate = parseResumeContent(existing.contentJson);
+            } catch (error) {
+              if (error instanceof ResumeContentParseError) {
+                throw new TRPCError({
+                  code: "CONFLICT",
+                  message: "STORED_RESUME_CONTENT_INVALID",
+                });
               }
-            : {}),
-          ...(content
-            ? {
-                contentJson: JSON.stringify(content),
-                contentSchemaVersion: RESUME_SCHEMA_VERSION,
-              }
-            : {}),
-        },
+              throw error;
+            }
+          }
+          const validation = resumeContentSchema.safeParse(contentToValidate);
+          if (!validation.success) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "RESUME_VALIDATION_FAILED",
+              cause: validation.error,
+            });
+          }
+        }
+
+        const nextContentJson = content ? JSON.stringify(content) : null;
+        if (nextContentJson && nextContentJson !== existing.contentJson) {
+          await tx.resumeVersion.create({
+            data: {
+              resumeId: id,
+              contentJson: existing.contentJson,
+              contentSchemaVersion: existing.contentSchemaVersion,
+              label: "Before save",
+            },
+          });
+        }
+
+        const result = await tx.resume.updateMany({
+          where: { id, userId: ctx.session.user.id },
+          data: {
+            ...guardedData,
+            ...(theme
+              ? {
+                  accentColor: theme.accentColor,
+                  themeJson: JSON.stringify(theme),
+                }
+              : {}),
+            ...(nextContentJson
+              ? {
+                  contentJson: nextContentJson,
+                  contentSchemaVersion: RESUME_SCHEMA_VERSION,
+                }
+              : {}),
+          },
+        });
+
+        if (!result.count) throw new TRPCError({ code: "NOT_FOUND" });
+        return { success: true };
       });
-
-      if (!result.count) throw new TRPCError({ code: "NOT_FOUND" });
-      return { success: true };
     }),
 
   duplicate: protectedProcedure
@@ -225,8 +259,9 @@ export const resumeRouter = createTRPCRouter({
         });
       } catch (error) {
         if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
+          error instanceof ResumeQuotaExceededError ||
+          (error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002")
         ) {
           throw new TRPCError({
             code: "FORBIDDEN",
