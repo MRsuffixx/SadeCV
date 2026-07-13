@@ -1,0 +1,59 @@
+name: Özellik talebi
+description: SadeCV için bir geliştirme önerin
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Ön kontroller
+      options:
+        - label: Benzer açık veya kapalı talepleri aradım.
+          required: true
+        - label: Talebin SadeCV'nin amacıyla ilgili olduğunu doğruladım.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Bu özellik hangi kullanıcı problemini çözecek?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Önerilen çözüm
+      description: Beklediğiniz kullanıcı akışını ve davranışı açıklayın.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatifler
+      description: Değerlendirdiğiniz diğer çözümleri yazın.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Alan
+      options:
+        - CV editörü
+        - Şablonlar ve PDF
+        - Kimlik doğrulama ve profil
+        - Abonelik ve ödeme
+        - Yönetim paneli
+        - Erişilebilirlik ve yerelleştirme
+        - Geliştirici deneyimi
+        - Diğer
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Kapsam ve ek bağlam
+      description: Mockup, örnek veya teknik kısıtları ekleyin; hassas veri paylaşmayın.

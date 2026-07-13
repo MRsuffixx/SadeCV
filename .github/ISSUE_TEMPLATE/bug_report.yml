@@ -1,0 +1,96 @@
+name: Hata raporu
+description: Tekrarlanabilir bir SadeCV hatasını bildirin
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hesap, ödeme veya kişisel veri içeren ayrıntıları public issue'ya eklemeyin. Güvenlik açıkları için SECURITY.md dosyasını kullanın.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Ön kontroller
+      options:
+        - label: Aynı sorunu bildiren açık veya kapalı issue'ları aradım.
+          required: true
+        - label: Bu rapor bir güvenlik açığı veya hesaba özel destek talebi içermiyor.
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Hata özeti
+      description: Sorunu kısa ve açık biçimde açıklayın.
+      placeholder: Ne çalışmıyor?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Yeniden üretme adımları
+      description: Sorunu tekrar oluşturmak için gereken en küçük adımları yazın.
+      placeholder: |
+        1. ... sayfasına git
+        2. ... seçeneğini seç
+        3. ... düğmesine bas
+        4. Hatayı gör
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Beklenen davranış
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Gerçek davranış
+    validations:
+      required: true
+
+  - type: input
+    id: route
+    attributes:
+      label: Etkilenen rota veya özellik
+      placeholder: /dash/resumes/... veya PDF export
+    validations:
+      required: true
+
+  - type: dropdown
+    id: database
+    attributes:
+      label: Veritabanı sağlayıcısı
+      options:
+        - SQLite
+        - PostgreSQL
+        - Bilmiyorum / ilgili değil
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Ortam
+      description: İşletim sistemi, tarayıcı, Node.js/pnpm sürümü ve ilgili diğer bilgileri yazın.
+      placeholder: Windows 11, Chrome 000, Node 24.15.0, pnpm 11.9.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Loglar veya ekran görüntüleri
+      description: Gizli anahtarları, token'ları ve kişisel verileri temizleyin.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Ek bağlam
