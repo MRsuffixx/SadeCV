@@ -244,7 +244,45 @@ export const resumeDraftContentSchema = z
     hobbies: z.array(hobbyDraftSchema).max(60).default([]),
     customSections: z.array(customSectionDraftSchema).max(40).default([]),
   })
-  .strict();
+  .strict()
+  .superRefine((content, ctx) => {
+    if (JSON.stringify(content).length > 500_000) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "CV content exceeds the 500 KB limit",
+        path: [],
+      });
+    }
+
+    const repeatableSections = [
+      ["employmentHistory", content.employmentHistory],
+      ["education", content.education],
+      ["skills", content.skills],
+      ["languages", content.languages],
+      ["certifications", content.certifications],
+      ["projects", content.projects],
+      ["awards", content.awards],
+      ["volunteerExperience", content.volunteerExperience],
+      ["publications", content.publications],
+      ["references", content.references.items],
+      ["hobbies", content.hobbies],
+      ["customSections", content.customSections],
+    ] as const;
+
+    repeatableSections.forEach(([section, items]) => {
+      const seen = new Set<string>();
+      items.forEach((item, index) => {
+        if (seen.has(item.id)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Item IDs must be unique within a section",
+            path: [section, index, "id"],
+          });
+        }
+        seen.add(item.id);
+      });
+    });
+  });
 
 type ValidationContext = z.RefinementCtx;
 

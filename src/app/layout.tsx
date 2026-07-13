@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     images: ["/og.png"],
   },
   other: {
-    "darkreader-lock": "",
+    "darkreader-lock": "true",
   },
 };
 

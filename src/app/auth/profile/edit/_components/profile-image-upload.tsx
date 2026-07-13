@@ -22,7 +22,13 @@ export function ProfileImageUpload({
       if (url) setPreview(url);
       setMessage("Profile photo updated");
     },
-    onUploadError: () => setMessage("The photo could not be uploaded."),
+    onUploadError: (error) =>
+      setMessage(
+        error.message.includes("UPLOADTHING_NOT_CONFIGURED") ||
+          error.message.includes("unavailable")
+          ? "Uploads need a v7 UploadThing token in the server environment."
+          : "The photo could not be uploaded.",
+      ),
   });
 
   return (

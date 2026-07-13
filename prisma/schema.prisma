@@ -52,6 +52,10 @@ model User {
   iyzicoCustomerReferenceCode     String?
   iyzicoSubscriptionReferenceCode String?        @unique
   locale                          String         @default("en")
+  bannedAt                        DateTime?
+  banReason                       String?
+  adminNotes                      String?
+  lastLoginAt                     DateTime?
   createdAt                       DateTime       @default(now())
   updatedAt                       DateTime       @updatedAt
   accounts                        Account[]
@@ -60,6 +64,9 @@ model User {
   usageGrants                     UsageGrant[]
   subscriptions                   Subscription[]
   donations                       Donation[]
+  paymentTransactions             PaymentTransaction[]
+  featureFlagsUpdated             FeatureFlag[] @relation("FeatureFlagUpdatedBy")
+  adminAuditLogs                  AdminAuditLog[] @relation("AdminAuditActor")
 }
 
 model VerificationToken {
@@ -158,7 +165,56 @@ model PaymentEvent {
   provider    String
   type        String
   payloadHash String?
+  status      String   @default("PROCESSED")
+  errorMessage String?
+  processedAt DateTime?
   createdAt   DateTime @default(now())
 
   @@index([provider, createdAt])
+}
+
+model PaymentTransaction {
+  id                    String   @id @default(cuid())
+  userId                String?
+  provider              String
+  kind                  String
+  providerTransactionId String
+  providerSessionId     String?
+  amount                Int?
+  currency              String?
+  status                String
+  failureReason         String?
+  metadataJson          String?
+  occurredAt            DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerTransactionId])
+  @@index([status, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean
+  description String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedBy   User?    @relation("FeatureFlagUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  action       String
+  entityType   String
+  entityId     String?
+  metadataJson String?
+  createdAt    DateTime @default(now())
+  actor        User?    @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
 }

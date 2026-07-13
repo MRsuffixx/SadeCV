@@ -53,11 +53,19 @@ function PersonalInformationPanel({ resumeId }: { resumeId: string }) {
   const setPersonal = useResumeStore((state) => state.setPersonal);
   const setSocial = useResumeStore((state) => state.setSocial);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState("");
   const { startUpload, isUploading } = useUploadThing("resumeAsset", {
     onClientUploadComplete: (files) => {
       const url = files[0]?.serverData.url;
       if (url) setPersonal("avatarUrl", url);
     },
+    onUploadError: (error) =>
+      setUploadError(
+        error.message.includes("UPLOADTHING_NOT_CONFIGURED") ||
+          error.message.includes("unavailable")
+          ? "Uploads need a v7 UploadThing token in the server environment."
+          : "The image could not be uploaded. Please try again.",
+      ),
   });
 
   return (
@@ -95,7 +103,10 @@ function PersonalInformationPanel({ resumeId }: { resumeId: string }) {
           className="sr-only"
           onChange={async (event) => {
             const file = event.target.files?.[0];
-            if (file) await startUpload([file], { resumeId });
+            if (file) {
+              setUploadError("");
+              await startUpload([file], { resumeId });
+            }
             event.target.value = "";
           }}
         />
@@ -108,6 +119,11 @@ function PersonalInformationPanel({ resumeId }: { resumeId: string }) {
           {isUploading ? "Uploading…" : "Upload"}
         </button>
       </div>
+      {uploadError ? (
+        <p role="alert" className="text-xs font-bold text-[#a45446]">
+          {uploadError}
+        </p>
+      ) : null}
 
       <FieldGroup title="Essentials">
         <FieldGrid>

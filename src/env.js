@@ -19,7 +19,13 @@ export const env = createEnv({
     VALKEY_URL: z.string().url().optional(),
     APP_DOMAIN: z.string().url().default("http://localhost:3000"),
     APP_PORT: z.coerce.number().int().positive().default(3000),
-    UPLOADTHING_TOKEN: z.string().optional(),
+    UPLOADTHING_TOKEN: z.preprocess(
+      (value) =>
+        typeof value === "string" && value.startsWith("sk_")
+          ? undefined
+          : value,
+      z.string().min(1).optional(),
+    ),
     STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
     STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
     STRIPE_PREMIUM_PRICE_ID: z.string().startsWith("price_").optional(),

@@ -1,4 +1,8 @@
-import { createUploadthing, type FileRouter } from "uploadthing/server";
+import {
+  createUploadthing,
+  UploadThingError,
+  type FileRouter,
+} from "uploadthing/server";
 import { z } from "zod";
 
 import { auth } from "~/server/auth";
@@ -8,7 +12,16 @@ const f = createUploadthing();
 
 async function authenticatedUser() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  if (!session?.user?.id) {
+    throw new UploadThingError({ code: "UNAUTHORIZED" });
+  }
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, bannedAt: true },
+  });
+  if (!user || user.bannedAt) {
+    throw new UploadThingError({ code: "FORBIDDEN" });
+  }
   return session.user;
 }
 
@@ -36,7 +49,7 @@ export const uploadRouter = {
         where: { id: input.resumeId, userId: user.id },
         select: { id: true },
       });
-      if (!resume) throw new Error("Resume not found");
+      if (!resume) throw new UploadThingError({ code: "NOT_FOUND" });
       return { userId: user.id, resumeId: resume.id };
     })
     .onUploadComplete(({ file, metadata }) => ({
