@@ -48,7 +48,7 @@ export const pdfStyles = StyleSheet.create({
     position: "absolute",
     right: 32,
     bottom: 20,
-    width: 32,
+    width: 50,
     fontSize: 5.6,
     color: "#9aa19d",
     textAlign: "right",
