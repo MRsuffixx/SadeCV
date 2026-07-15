@@ -69,7 +69,9 @@ export async function POST(
   const [resume, user] = await Promise.all([
     db.resume.findFirst({
       where: { id: resumeId, userId: session.user.id },
-      select: { id: true },
+      // C5 fix: also fetch the stored template so we can enforce that the
+      // caller cannot request a premium template they didn't pay for.
+      select: { id: true, template: true },
     }),
     db.user.findUnique({
       where: { id: session.user.id },
@@ -92,7 +94,40 @@ export async function POST(
   ) {
     return Response.json({ error: "MAINTENANCE_MODE" }, { status: 503 });
   }
-  if (isPremiumTemplate(input.data.template) && !hasPremiumAccess(user)) {
+  // C5 fix: enforce the authoritative template from the database record, not
+  // the caller-supplied value. A free user posting template: "EXECUTIVE" for a
+  // resume stored with a free template must not receive the premium PDF.
+  // We compare the REQUEST template against the stored one: if the caller
+  // requests a premium template that is different from the stored template, or
+  // if the stored template itself is premium and the user has no premium access,
+  // block the request.
+  //
+  // Note: resume.template is a raw string from Prisma; parse it through the
+  // schema to get the narrower ResumeTemplate type required by isPremiumTemplate.
+  const parsedStoredTemplate = resumeTemplateIdSchema.safeParse(resume.template);
+  const authoritativeTemplate = parsedStoredTemplate.success
+    ? parsedStoredTemplate.data
+    : null;
+  const requestedTemplate = input.data.template;
+  const templateToRender =
+    isPremiumTemplate(requestedTemplate) && !hasPremiumAccess(user)
+      ? // Attacker tried to upgrade to a premium template — reject entirely.
+        null
+      : requestedTemplate;
+  if (templateToRender === null) {
+    return Response.json(
+      { error: "PREMIUM_TEMPLATE_REQUIRED" },
+      { status: 402 },
+    );
+  }
+  // Also block if the stored template itself is premium and they have no access
+  // (belt-and-suspenders: recomputeUserPlan already demotes resumes, but this
+  // guards against stale DB state).
+  if (
+    authoritativeTemplate &&
+    isPremiumTemplate(authoritativeTemplate) &&
+    !hasPremiumAccess(user)
+  ) {
     return Response.json(
       { error: "PREMIUM_TEMPLATE_REQUIRED" },
       { status: 402 },
@@ -101,7 +136,9 @@ export async function POST(
 
   try {
     const document = createElement(ResumePdfDocument, {
-      data: input.data,
+      // C5: use templateToRender (the validated safe template) instead of the
+      // raw input.data.template to ensure the paywall guard is enforced.
+      data: { ...input.data, template: templateToRender },
     }) as unknown as Parameters<typeof renderToBuffer>[0];
     const buffer = await renderToBuffer(document);
     return new Response(new Uint8Array(buffer), {

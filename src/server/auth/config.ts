@@ -95,6 +95,11 @@ if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
 export const authConfig = {
   providers,
   adapter: PrismaAdapter(db),
+  // C6 fix: next-auth@5 only accepts `trustHost?: boolean`. We keep it true
+  // (required for reverse-proxy / Vercel deployments) but add a `redirect`
+  // callback below that pins all redirect URLs to the configured APP_DOMAIN,
+  // preventing Host-header injection from redirecting OAuth flows to an
+  // attacker-controlled origin.
   trustHost: true,
   session: { strategy: "jwt" },
   pages: {
@@ -102,6 +107,21 @@ export const authConfig = {
     error: "/auth/login",
   },
   callbacks: {
+    // C6 fix: validate redirect URLs to prevent Host-header injection from
+    // routing OAuth / magic-link callbacks to attacker-controlled origins.
+    redirect: ({ url }) => {
+      const appOrigin = new URL(env.APP_DOMAIN).origin;
+      // Allow relative paths (same-site) and URLs on the pinned APP_DOMAIN.
+      if (url.startsWith("/")) return `${appOrigin}${url}`;
+      try {
+        const parsed = new URL(url);
+        if (parsed.origin === appOrigin) return url;
+      } catch {
+        // Malformed URL — fall through to default.
+      }
+      // Fall back to the configured origin, not the request's baseUrl.
+      return appOrigin;
+    },
     signIn: ({ account, profile }) =>
       account?.provider !== "google" || profile?.email_verified === true,
     jwt: async ({ token, user, trigger }) => {

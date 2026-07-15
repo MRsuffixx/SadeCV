@@ -207,6 +207,18 @@ export async function loginAction(
       redirectTo: "/dash",
     });
   } catch (error) {
+    // C1 fix: In next-auth@5.0.0-beta.25 the NEXT_REDIRECT thrown by a
+    // successful signIn() extends AuthError. We must re-throw it BEFORE the
+    // AuthError guard so that Next.js can perform the redirect.
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "digest" in error &&
+      typeof (error as { digest?: unknown }).digest === "string" &&
+      (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+    ) {
+      throw error;
+    }
     if (error instanceof AuthError) {
       return { error: "Those credentials couldn't be verified." };
     }

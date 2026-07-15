@@ -216,10 +216,14 @@ export const billingRouter = createTRPCRouter({
 
       try {
         if (input.provider === "STRIPE") {
+          // C7 fix: never forward the caller-supplied email to Stripe. For
+          // authenticated users use the verified account email; for anonymous
+          // donors omit customer_email so Stripe collects it on the hosted page.
+          const donationEmail = ctx.session?.user?.email ?? undefined;
           const checkout = await createStripeDonationCheckout({
             donationId: donation.id,
             userId: ctx.session?.user?.id,
-            email: input.email,
+            email: donationEmail,
             amount: input.amount,
             currency: input.currency,
           });

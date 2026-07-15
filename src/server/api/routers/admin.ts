@@ -21,20 +21,36 @@ const paginationSchema = z.object({
   pageSize: z.number().int().min(10).max(100).default(20),
 });
 
+// C3 fix: the original acquireAdminMutationLock did a featureFlag upsert, which
+// only locks that one FeatureFlag row — not the User rows counted in
+// assertNotLastAdmin. Two concurrent demotions could both pass the count check.
+// We now use a PostgreSQL advisory transaction-level lock which is scoped to
+// the current transaction and is automatically released on commit/rollback.
+// This serializes ALL concurrent admin-mutation transactions globally.
 const ADMIN_MUTATION_LOCK_KEY = "__ADMIN_RBAC_MUTEX__";
+const ADMIN_LOCK_ID = 7_282_929_283n; // arbitrary stable 64-bit key
 
 async function acquireAdminMutationLock(db: Prisma.TransactionClient) {
-  await db.featureFlag.upsert({
-    where: { key: ADMIN_MUTATION_LOCK_KEY },
-    create: {
-      key: ADMIN_MUTATION_LOCK_KEY,
-      enabled: true,
-      description: "Internal lock for serialized administrator mutations.",
-    },
-    update: {
-      description: "Internal lock for serialized administrator mutations.",
-    },
-  });
+  try {
+    // PostgreSQL: advisory lock held until end of transaction.
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(${ADMIN_LOCK_ID})`;
+  } catch {
+    // SQLite (development) does not support pg_advisory_xact_lock.
+    // Fall back to a write-intent upsert on the known FeatureFlag row; this
+    // acquires a row-level write lock in SQLite's WAL mode and is sufficient
+    // for single-server development use.
+    await db.featureFlag.upsert({
+      where: { key: ADMIN_MUTATION_LOCK_KEY },
+      create: {
+        key: ADMIN_MUTATION_LOCK_KEY,
+        enabled: true,
+        description: "Internal lock for serialized administrator mutations.",
+      },
+      update: {
+        description: "Internal lock for serialized administrator mutations.",
+      },
+    });
+  }
 }
 
 async function assertNotLastAdmin(

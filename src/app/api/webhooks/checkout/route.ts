@@ -118,7 +118,7 @@ async function handleIyzico(rawBody: string, signature: string) {
       }
 
       if (eventType.startsWith("subscription.")) {
-        const existing = await tx.subscription.findUnique({
+        let existing = await tx.subscription.findUnique({
           where: {
             provider_providerSubscriptionId: {
               provider: "IYZICO",
@@ -126,9 +126,49 @@ async function handleIyzico(rawBody: string, signature: string) {
             },
           },
         });
+
         if (!existing) {
-          throw new Error("IYZICO_SUBSCRIPTION_NOT_CORRELATED");
+          // C4 fix: the subscription checkout creator only stores a
+          // PaymentCheckout row (with referenceId = userId) but never creates
+          // the Subscription row. When the subscription.created webhook arrives
+          // before the callback completes, we must create the Subscription row
+          // on the fly using the userId stored in PaymentCheckout.referenceId.
+          // We use the iyzico conversationId (= userId) as the correlation key.
+          // iyzico sets conversationId to userId in createIyzicoSubscriptionCheckout.
+          const userId: string | null =
+            payload.paymentConversationId ??
+            authoritativeSubscription?.customerReferenceCode ??
+            null;
+          if (!userId) {
+            throw new Error("IYZICO_SUBSCRIPTION_NOT_CORRELATED");
+          }
+          existing = await tx.subscription.upsert({
+            where: {
+              provider_providerSubscriptionId: {
+                provider: "IYZICO",
+                providerSubscriptionId: providerSubscriptionId!,
+              },
+            },
+            create: {
+              userId,
+              provider: "IYZICO",
+              providerSubscriptionId: providerSubscriptionId!,
+              status:
+                authoritativeSubscription!.subscriptionStatus!.toUpperCase(),
+              currentPeriodEnd: parseIyzicoEpochDate(
+                authoritativeSubscription!.endDate,
+              ),
+            },
+            update: {
+              status:
+                authoritativeSubscription!.subscriptionStatus!.toUpperCase(),
+              currentPeriodEnd: parseIyzicoEpochDate(
+                authoritativeSubscription!.endDate,
+              ),
+            },
+          });
         }
+
         const paymentSucceeded =
           payload.status?.toUpperCase() === "SUCCESS" ||
           eventType.endsWith(".success");

@@ -118,32 +118,38 @@ export async function processStripeEvent(
   event: Stripe.Event,
 ) {
   const eventId = `STRIPE:${event.id}`;
-  const existingEvent = await tx.paymentEvent.findUnique({
+  // C8 fix: two-phase idempotency check to prevent concurrent duplicate processing.
+  //
+  // Phase 1: fast early-exit if the event was already fully processed. This
+  // read runs BEFORE the upsert so we do not clobber a PROCESSED row.
+  const alreadyProcessed = await tx.paymentEvent.findUnique({
     where: { id: eventId },
     select: { status: true },
   });
-  if (existingEvent?.status === "PROCESSED") return;
-  if (existingEvent) {
-    await tx.paymentEvent.update({
-      where: { id: eventId },
-      data: {
-        type: event.type,
-        status: "PROCESSING",
-        attempts: { increment: 1 },
-        errorMessage: null,
-        processedAt: null,
-      },
-    });
-  } else {
-    await tx.paymentEvent.create({
-      data: {
-        id: eventId,
-        provider: "STRIPE",
-        type: event.type,
-        status: "PROCESSING",
-      },
-    });
-  }
+  if (alreadyProcessed?.status === "PROCESSED") return;
+  //
+  // Phase 2: upsert to atomically claim the event row. PostgreSQL's
+  // ON CONFLICT DO UPDATE takes a row-level lock, serializing concurrent
+  // deliveries. The losing concurrent writer waits here, then returns a
+  // PROCESSING row and continues — but all subsequent DB writes are
+  // idempotent upserts so the duplicate side-effects are no-ops.
+  await tx.paymentEvent.upsert({
+    where: { id: eventId },
+    create: {
+      id: eventId,
+      provider: "STRIPE",
+      type: event.type,
+      status: "PROCESSING",
+    },
+    update: {
+      type: event.type,
+      status: "PROCESSING",
+      attempts: { increment: 1 },
+      errorMessage: null,
+      processedAt: null,
+    },
+  });
+
 
   if (
     event.type === "customer.subscription.created" ||
